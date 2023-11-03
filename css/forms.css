@@ -1,0 +1,105 @@
+.button-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1em;
+}
+
+a {
+    font-size: 1.5rem;
+    padding: 1rem 3rem;
+    color: #f4f4f4;
+    text-transform: uppercase;
+}
+
+.btn {
+    text-decoration: none;
+    border: 2px solid dodgerblue;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    background-color: #F665C488;
+    font-weight: 500;
+}
+
+.btn:hover {
+    box-shadow: 1px 1px 25px 10px rgba(248, 146, 209, 0.8);
+}
+
+.btn:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(120deg,
+            transparent,
+            rgba(255, 255, 255, 0.4),
+            transparent);
+    transition: all 650ms;
+    font-weight: bolder;
+}
+
+.btn:hover:before {
+    left: 100%;
+}
+
+.btn-primary {
+    border: 0 solid;
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0);
+    outline: 1px solid;
+    outline-color: rgba(255, 255, 255, .5);
+    outline-offset: 0px;
+    text-shadow: none;
+    transition: all 1250ms cubic-bezier(0.19, 1, 0.22, 1);
+    height: 200px;
+    width: 120px;
+}
+
+.btn-primary:hover {
+    border: 2px solid;
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, .5), 0 0 20px rgba(255, 255, 255, .2);
+    border-radius: 4px;
+    outline-color: rgba(255, 255, 255, 0);
+    outline-offset: 15px;
+    text-shadow: 1px 1px 2px #427388;
+}
+
+form {
+    max-width: 800px;
+    margin: auto;
+}
+
+form p {
+    text-align: center;
+}
+
+form .titulo {
+    text-align: center;
+    font-weight: bolder;
+}
+
+input[type=text] {
+    width: 100%;
+    border: 2px solid #aaa;
+    border-radius: 6px;
+    margin: 8px 0;
+    outline: none;
+    padding: 8px;
+    box-sizing: border-box;
+    transition: .3s;
+    height: 80px;
+    font-size: 30px;
+    background-color: #00000044;
+    color: white;
+}
+
+input[type=text]:focus {
+    border-color: dodgerblue;
+    box-shadow: 0 0 8px 0 dodgerblue;
+}
+
+input[type=text]::placeholder {
+    color: #FFFFFF88;
+}

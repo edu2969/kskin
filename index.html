@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en-US">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>KSKin - Tu próxima mejor versión</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">    
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200&display=swap" rel="stylesheet">    
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/home.css" />
+    <link rel="stylesheet" href="css/forms.css" />
+    <link rel="stylesheet" href="css/nav.css" />
+    <script src="js/main.js"></script>
+    <script src="js/ia.js"></script>
+</head>
+
+<body>
+    <div class="nav">
+        <span class="material-icons icono-toggle">menu</span>
+        <ul id="nav-menu">
+            <li><span class="icon-menu material-icons">home</span>&nbsp;Home</li>
+            <li><span class="icon-menu material-icons">person_search</span>&nbsp;Nosotros</li>
+            <li><span class="icon-menu material-icons">support_agent</span>&nbsp;Contacto</li>
+        </ul>
+    </div>
+    <div class="fondo-pantalla">
+        <img id="img-01" src="images/cuidado_piel.jpg">
+        <img id="img-02" style="display: none;" src="images/hierbas_medicinales.jpg">
+    </div>
+    <div class="header">
+        <div class="logo">
+            <img src="images/logo_blanco.png">                
+            <span class="brand-text">KSkin</span>
+        </div>            
+    </div>
+    <div class="contenido">        
+        <form>
+            <h1 class="titulo">¿Qué estás buscando?</h1>
+            <p>Describemos tus inquietudes</p>
+            <input type="text" id=prompt placeholder="Escribe tu texto aquí" autocomplete="off"/>
+            <div class="button-container">
+                <a href="#" id=btnSend class="btn">Enviar</a>
+            </div>
+        </form>
+    </div>
+    <footer>
+        <p style="cursor: pointer;" onclick="window.location='http://www.yga.cl'">©Copyright 2050 by <b>yGa</b></p>
+    </footer>
+</body>
+
+</html>
