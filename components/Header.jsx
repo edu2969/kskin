@@ -22,7 +22,7 @@ export const Header = () => {
 
 
     return (<nav
-        className={`z-40 fixed top-0 w-full transition-all duration-300 ${scrolled ? 'bg-transparent shadow-md scale-95' : 'bg-transparent'
+        className={`z-40 fixed top-0 w-full transition-all duration-300 ${scrolled ? 'bg-transparent shadow-md scale-90 -mt-1' : 'bg-transparent'
             }`}
         style={{ backdropFilter: scrolled ? 'blur(10px)' : 'none' }}
     >
@@ -30,7 +30,7 @@ export const Header = () => {
             <div className="w-full mx-auto mb-4">
                 <div className="w-full flex justify-center">
                     <div className="flex mr-20">
-                        <img width={42} height={60} className="mr-2 mt-2" src="/simple-logo.png" alt="logo KSkin" />
+                        <img width={42} height={60} className="mr-2 mt-2" src="/simple-logo-transparent.png" alt="logo KSkin" />
                     </div>
                     <div className="flex space-x-6 mt-4 text-[#A4A5A1] text-lg">
                         <p className="hover:text-black hover:underline cursor-pointer uppercase tracking-widest">Inicio</p>

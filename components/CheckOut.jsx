@@ -7,10 +7,9 @@ import { FaCheckCircle } from "react-icons/fa"
 import { useEffect, useRef, useState } from "react"
 import { signIn } from "next-auth/react"
 import { Loader } from "./Loader";
-import { MdNavigateBefore, MdNavigateNext } from "react-icons/md"
+import { MdNavigateBefore, MdNavigateNext, MdOutlinePriceCheck } from "react-icons/md"
 import numberFormat from "@/app/utils/currency"
 import dayjs from "dayjs"
-import Link from "next/link";
 
 dayjs.locale("es");
 
@@ -444,7 +443,7 @@ export const CheckOut = ({ session, productId }) => {
                                     handleDateConfirmed()
                                     e.preventDefault();
                                 }}
-                                    className="w-[260px] flex justify-center text-[#A4A5A1] btn border-solid border-2 border-pink-300 rounded-lg relative overflow-hidden bg-white text-2xl py-1 px-9">
+                                    className="w-[260px] text-[#A4A5A1] btn border-solid border-2 border-pink-300 rounded-lg relative overflow-hidden bg-white text-2xl py-1 px-9">
                                     Confirmar <MdNavigateNext className="mr-2" size="2rem" />
                                 </button>
                             </div>
@@ -452,22 +451,27 @@ export const CheckOut = ({ session, productId }) => {
                             <Loader />}
                     </>}
 
-                    {checkOut.productoConfirmado && <>
-                        <h1 className="text-3xl text-center mb-4">Pago</h1>
-                        <p>Tu pago fue exitoso</p>
-                        {checkOut.payment && <>
+                    {checkOut.productoConfirmado && <div className="text-left">                        
+                        {checkOut.payment && <div className="flex">
+                        <div className="justify-start text-left uppercase tracking-widest">
+                            <h1 className="text-3xl mb-4 text-[#EE64C5]">Pago exitoso</h1>
                             <p>{`Tarjeta  : **** **** ${checkOut.payment.cardNumber}`}</p>
                             <p>{`Fecha    : ${dayjs(checkOut.payment.transactionDate).format('DD/MMM/YYYY HH:mm')}`}</p>
                             <p>{`Monto    : $ ${numberFormat(checkOut.payment.amount)}`}</p>
                             <p>{`N° orden : ${checkOut.payment.orderNumber}`}</p>
-                            <Link href="/"
-                                className="w-[260px] btn flex border-solid border-2 border-[#EE64C5] rounded-lg relative overflow-hidden bg-[#EE64C5] font-extrabold text-2xl py-1 px-12 text-center">Home</Link>
-                        </>}
+                            <button
+                                className="w-[260px] btn border-solid border-2 border-[#EE64C5] rounded-lg relative overflow-hidden bg-[#EE64C5] text-2xl py-1 px-12 text-center text-white mt-6">
+                                HOME
+                            </button>                            
+                        </div>
+                        <div className="m-auto">
+                            <MdOutlinePriceCheck className="border-8 border-lime-400 rounded-full bg-white text-lime-400 p-4" size="10rem"/>
+                        </div></div>}
                         {checkOut.paymentError && <>
                             <p className="text-[#EE64C5]">`Error!!!`</p>
                         </>}
                         {confirmando && <Loader />}
-                    </>}
+                    </div>}
                 </form>
             </div>
         </div>
