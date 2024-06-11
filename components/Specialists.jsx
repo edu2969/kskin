@@ -14,7 +14,7 @@ const PROFESIONALES = [{
 
 export const Specialists = () => {
     return (
-        <>
+        <div id="seccion-profesionales">
             <p className="ml-12 my-12 text-2xl text-[#EE64C5] mb-4 uppercase tracking-widest">Nuestros especialistas</p>
             <div className="w-full flex justify-center items-center flex-col mt-12">
                 <div className="flex justify-center space-x-48">
@@ -29,6 +29,6 @@ export const Specialists = () => {
                     ))}
                 </div>
             </div>
-        </>
+        </div>
     );
 }

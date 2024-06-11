@@ -21,7 +21,7 @@ export async function POST(req) {
         'buy_order': `MSJ_PLUS01_${body.sessionId}`,
         'session_id': `SDI_${body.sessionId}`,
         'amount': 49990,
-        'return_url': `${process.env.BASE_URL}/agenda/${body.productId}`
+        'return_url': `${process.env.BASE_URL}/checkout/${body.productId}`
       })
     });
 

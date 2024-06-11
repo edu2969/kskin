@@ -47,7 +47,7 @@ export const CatalogList = ({ session }) => {
     };
 
     return (<>
-        <div className="w-full">
+        <div id="seccion-catalogo" className="w-full">
             <p className="ml-12 text-2xl text-[#EE64C5] mb-4 uppercase tracking-widest">Nuestro catálogo</p>
             <div className="flex text-[#5A5A5A]">
                 <div className="w-1/2 px-4 border-r-2 border-[#d3d3d3]">
@@ -90,7 +90,7 @@ export const CatalogList = ({ session }) => {
                                 {selectedService.description}
                             </p>
                             <div className="flex mt-4">
-                                <Link href={`/agenda/${selectedService.id}`}>
+                                <Link href={`/checkout/${selectedService.id}`}>
                                     <button className="btn border-solid border-2 border-[#ea86cc] rounded-full overflow-hidden bg-[#EE64C5] font-extrabold text-xl py-1 px-9"
                                         id="btnReservar"
                                     >

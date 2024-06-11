@@ -13,7 +13,7 @@ import dayjs from "dayjs"
 
 dayjs.locale("es");
 
-export const CheckOut = ({ session, productId }) => {
+export const CheckOut = ({ session, catalogId }) => {
     const [sessionId, setSessionId] = useState(new Date().getTime());
 
     const [value, setValue] = useState({
@@ -35,6 +35,7 @@ export const CheckOut = ({ session, productId }) => {
     const [passwordVisible, setPasswordVisible] = useState(false);
     const [repasswordVisible, setRepasswordVisible] = useState(false);
     const [loadingCalendar, setLoadingCalendar] = useState(true);
+    const [abono, setAbono] = useState(false);
     const {
         register,
         formState: {
@@ -192,7 +193,7 @@ export const CheckOut = ({ session, productId }) => {
     }
 
     const handleDateConfirmed = async () => {
-        console.log("ODA", productId, "..")
+        console.log("ODA", catalogId, "..")
         const resp = await fetch('/api/checkout', {
             method: "POST",
             headers: {
@@ -200,7 +201,7 @@ export const CheckOut = ({ session, productId }) => {
             },
             body: JSON.stringify({
                 sessionId,
-                productId: productId,
+                catalogId: catalogId,
                 sessions: checkOut.sesiones,
             })
         })
@@ -214,7 +215,7 @@ export const CheckOut = ({ session, productId }) => {
         const token_ws = params.get('token_ws');
         if (token_ws != null && token_ws != undefined) {
             const nc = JSON.parse(JSON.stringify(checkOut));
-            nc.productId = productId;
+            nc.catalogId = catalogId;
             nc.sesionesOk = true;
             nc.sesionesConfirmadas = true;
             nc.productoConfirmado = true;
@@ -246,6 +247,11 @@ export const CheckOut = ({ session, productId }) => {
         }
     }, []);
 
+    const handleCheckboxChange = (event) => {
+        console.log("EVENT", event.target.checked)
+        setAbono(event.target.checked);
+    };
+
     return <>
         <div className="max-w-screen-lg m-auto bg-white overflow-x-hidden pb-24">
 
@@ -262,7 +268,7 @@ export const CheckOut = ({ session, productId }) => {
                     <div>
                         {checkOut?.sesionesOk ? <FaCheckCircle className="text-lime-500 mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-pink-300 h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">2</p>}
                     </div>
-                    <p className="font-extrabold text-2xl ml-4 mt-1">Fecha / Producto</p>
+                    <p className="font-extrabold text-2xl ml-4 mt-1">Fecha / Confirmación</p>
                 </div>
                 <div className={`flex w-1/3 justify-center h-10 ${checkOut?.productoConfirmado ? 'bg-white rounded-r-xl' : 'bg-transparent'} text-[#EE64C5]`}>
                     <div>
@@ -275,8 +281,9 @@ export const CheckOut = ({ session, productId }) => {
             <div className="w-full left-0 top-20 h-full overflow-hidden">
                 <form className="bg-[#f2f2f2] text-[#A4A5A1] rounded-3xl mt-6 p-6 mx-auto w-[852px]">
                     {!session?.user && <>
-                        <h1 className="text-3xl text-center mb-4">
-                            <span className="cursor-pointer hover:text-blue-500 hover:underline" onClick={() => { toggleRegistration(false) }}>Identifícate</span> ó&nbsp;
+                        <h1 className="text-3xl text-center mb-4 uppercase tracking-widest">
+                            <span className="cursor-pointer hover:text-blue-500 hover:underline" onClick={() => { toggleRegistration(false) }}>Identifícate</span>
+                            <span className="lowercase"> ó&nbsp;</span>
                             <span className="cursor-pointer hover:text-blue-500 hover:underline" onClick={() => { toggleRegistration(true) }}>Regístrate</span>
                         </h1>
                         {!login ? <div>
@@ -291,7 +298,7 @@ export const CheckOut = ({ session, productId }) => {
                                     })}
                                     id="email"
                                     className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-white bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
-                                <label htmlFor="email" className="absolute text-sm text-gray-300 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#6E4A26] dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-white peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
+                                <label htmlFor="email" className="absolute text-sm text-gray-300 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#f2f2f2] dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-[#A4A5A1] peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
                                     e-mail</label>
                             </div>
                             {errors.email && <div className="text-red-400 w-[260px] text-sm mx-auto my-0 pb-2 pl-2"><span>Ingrese un email válido</span></div>}
@@ -300,7 +307,7 @@ export const CheckOut = ({ session, productId }) => {
                                     {...register('password', { required: true })}
                                     id="password"
                                     className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-white bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
-                                <label htmlFor="password" className="absolute text-sm text-gray-300 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#6E4A26] dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-white peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
+                                <label htmlFor="password" className="absolute text-sm text-gray-300 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#f2f2f2] dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-[#A4A5A1] peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
                                     password</label>
                                 <div className="absolute right-3 top-2.5 cursor-pointer" onClick={() => { setPasswordVisible(!passwordVisible) }}>
                                     {passwordVisible ? <FaEye size="1.5rem" /> : <FaEyeSlash size="1.5rem" />}
@@ -312,7 +319,7 @@ export const CheckOut = ({ session, productId }) => {
                                     {...register('repassword', { required: true })}
                                     id="repassword"
                                     className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-white bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
-                                <label htmlFor="repassword" className="absolute text-sm text-gray-300 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#6E4A26] dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-white peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
+                                <label htmlFor="repassword" className="absolute text-sm text-gray-300 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#f2f2f2] dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-[#A4A5A1] peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
                                     re-password</label>
                                 <div className="absolute right-3 top-2.5 cursor-pointer" onClick={() => { setRepasswordVisible(!repasswordVisible) }}>
                                     {repasswordVisible ? <FaEye size="1.5rem" /> : <FaEyeSlash size="1.5rem" />}
@@ -322,19 +329,19 @@ export const CheckOut = ({ session, productId }) => {
 
                             <div className="button-container">
                                 <button onClick={handleSubmit(identificationHandler)}
-                                    className="w-[260px] btn border-solid border-2 border-[#EE64C5] rounded-lg relative overflow-hidden bg-[#EE64C5] font-extrabold text-2xl py-1 px-9">
+                                    className="w-[260px] btn border-solid border-2 border-[#EE64C5] rounded-lg relative overflow-hidden bg-[#EE64C5] font-extrabold text-2xl py-1 px-9 tracking-widest">
                                     {registrationMode ? 'REGISTRAR' : 'ENTRAR'}
                                 </button>
                             </div>
                             <div className="button-container">
-                                <button className="w-[260px] flex justify-center btn border-solid border-2 border-slate-400 rounded-lg relative overflow-hidden bg-white font-extrabold text-2xl py-1 px-9 text-slate-500">
-                                    <TbBrandGoogleFilled className="mr-2" size="2rem" /> Google
+                                <button className="w-[260px] flex justify-center btn border-solid border-2 border-slate-400 rounded-lg relative overflow-hidden bg-white font-extrabold text-2xl py-1 px-9 ">
+                                    <TbBrandGoogleFilled className="text-black mr-2" size="2rem" /><span className="text-black font-bold"> Google</span>
                                 </button>
                             </div>
                             <div className="button-container">
                                 <button onClick={() => signOut({ callbackUrl: '/' })}
                                     className="w-[260px] flex justify-center btn border-solid border-2 border-blue-400 rounded-lg relative overflow-hidden bg-blue-300 text-slate-100 font-extrabold text-2xl py-1 px-9">
-                                    <FaMeta className="mr-2" size="2rem" /> Meta
+                                    <FaMeta className="mr-2" size="2rem" /><b> Meta</b>
                                 </button>
                             </div>
                         </div> :
@@ -344,7 +351,7 @@ export const CheckOut = ({ session, productId }) => {
                     {(session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
                         <h1 className="text-3xl text-center mb-4">
                             <span className="cursor-pointer text-blue-500 underline">Fecha</span> /&nbsp;
-                            <span>Producto</span>
+                            <span>Confirmación</span>
                         </h1>
                         <div className="w-full flex justify-center">
                             <div className="w-[80px] h-20 border-2 border-slate-400 bg-transparent hover:bg-slate-300 cursor-pointer rounded-md mx-2 mt-10 hover:text-slate-700">
@@ -368,13 +375,14 @@ export const CheckOut = ({ session, productId }) => {
                             </div>
                         </div>
 
-                        <p className="text-xl mt-4 uppercase tracking-widest">
-                            {checkOut.sesionesOk ? `Sesiones listas. Presiona continuar` : `Selecciones sus ${checkOut?.sesiones?.length} sesiones`}
+                        <p className={`text-xl mt-4 uppercase tracking-widest text-center ${checkOut.sesionesOk ? 'text-black' : ''}`}>
+                            {checkOut.sesionesOk ? `Sesiones listas. Presiona continuar` : `Seleccione sus ${checkOut?.sesiones?.length || ''} sesiones`}
                         </p>
                         <div className="w-full flex px-20">
                             {checkOut?.sesiones?.map((s, index) =>
-                                <div key={`${s.numeroDia}_${s.indiceJornada}_${index}`} className="border-2 border-slate-400 rounded-md p-1 m-2 w-1/3">
-                                    <p className="uppercase tracking-widest font-bold text-[#EE64C5]">Sesión {index + 1}</p>
+                                <div key={`${s.numeroDia}_${s.indiceJornada}_${index}`}
+                                    className={`${s.dia != 0 ? 'bg-white' : ''} border-2 border-slate-400 rounded-md py-1 px-4 m-2 w-1/3`}>
+                                    <p className={`uppercase tracking-widest font-bold ${s.dia != 0 ? 'text-[#EE64C5]' : ''}`}>Sesión {index + 1}</p>
                                     <p className="text-bold">{s.dia != 0 ? dayjs(s.fecha).format("DD/MMM/YY HH:mm") : '--/--/-- --:--'}</p>
                                 </div>
                             )}
@@ -397,8 +405,8 @@ export const CheckOut = ({ session, productId }) => {
                                     cal.sesionesConfirmadas = true;
                                     setCheckOut(cal);
                                 }}
-                                    className="w-[260px] flex justify-center btn border-solid border-2 border-slate-400 rounded-lg relative overflow-hidden bg-white font-extrabold text-2xl py-1 px-9 text-slate-500">
-                                    Continuar <MdNavigateNext className="mr-2" size="2rem" />
+                                    className="w-[260px] flex justify-center btn border-solid border-2 border-slate-400 rounded-lg relative overflow-hidden bg-white font-extrabold text-2xl py-1 uppercase tracking-widest">
+                                    <span className="text-black">Continuar </span><MdNavigateNext className="text-black mr-2" size="2rem" />
                                 </button>
                             </div>
                         </div> :
@@ -408,24 +416,37 @@ export const CheckOut = ({ session, productId }) => {
                     {(checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
                         <h1 className="text-3xl text-center mb-4">
                             <span>Fecha</span> /&nbsp;
-                            <span className="cursor-pointer text-blue-500 underline">Producto</span>
+                            <span className="cursor-pointer text-blue-500 underline">Confirmación</span>
                         </h1>
                         <div className="w-full flex">
-                            <div className="w-2/5 text-center">
+                            <div className="w-4/12 text-center">
                                 <img src="/camara_hiperbalica.png" className="rounded-md w-full" />
                             </div>
-                            <div className="w-3/5 ml-4">
+                            <div className="w-8/12 ml-4">
                                 <div className="w-full ml-6">
-                                    <p className="text-left text-xl uppercase tracking-widest text-[#EE64C5]">Cámara hiperbálica</p>
-                                    <p className="text-left pr-16">Éstas son sus sesiones. Confirmelas para reservar con su pago o vuelva para seleccionarlas nuevamente</p>
+                                    <p className="text-left text-xl uppercase tracking-widest text-[#EE64C5]">Cámara hiperbálica</p>                                    
                                 </div>
                                 <div className="w-full flex px-4">
                                     {checkOut?.sesiones?.map((s, index) =>
-                                        <div key={`${s.numeroDia}_${s.indiceJornada}_${index}`} className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md p-1 m-2 w-1/3">
+                                        <div key={`${s.numeroDia}_${s.indiceJornada}_${index}`} className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2 w-1/3">
                                             <p className="font-bold uppercase tracking-widest">Sesión {index + 1}</p>
                                             <p className="text-xs">{s.dia != 0 ? dayjs(s.fecha).format("DD/MMM/YYYY HH:mm") : '--/--/-- --:--'}</p>
                                         </div>
                                     )}
+                                </div>
+                                <div className="ml-6">
+                                    <div>
+                                        <input type="checkbox"
+                                            checked={abono}
+                                            onChange={handleCheckboxChange} />
+                                        <span>&nbsp;Deseo abonar la primera sesión.</span>
+                                    </div>
+                                    <p className="text-4xl font-bold">
+                                        {abono ? <>
+                                            <span className="text-sm">TOTAL</span> $ 90.000
+                                            <br /><span className="text-sm">SALDO</span> <span className="text-xl">$108.000</span>
+                                        </> : <><span className="text-sm">TOTAL</span> $ 198.000</>}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -439,34 +460,33 @@ export const CheckOut = ({ session, productId }) => {
                             </div>
                             <div className="button-container">
                                 <button onClick={(e) => {
-                                    console.log("POR ACA...");
                                     handleDateConfirmed()
                                     e.preventDefault();
                                 }}
-                                    className="w-[260px] text-[#A4A5A1] btn border-solid border-2 border-pink-300 rounded-lg relative overflow-hidden bg-white text-2xl py-1 px-9">
-                                    Confirmar <MdNavigateNext className="mr-2" size="2rem" />
+                                    className="flex w-[260px] btn border-solid border-2 border-pink-300 rounded-lg bg-white text-2xl py-1 justify-center">
+                                    <span className="text-black uppercase tracking-widest">Confirmar </span><MdNavigateNext className="text-black mr-2" size="2rem" />
                                 </button>
                             </div>
                         </div> :
                             <Loader />}
                     </>}
 
-                    {checkOut.productoConfirmado && <div className="text-left">                        
+                    {checkOut.productoConfirmado && <div className="text-left">
                         {checkOut.payment && <div className="flex">
-                        <div className="justify-start text-left uppercase tracking-widest">
-                            <h1 className="text-3xl mb-4 text-[#EE64C5]">Pago exitoso</h1>
-                            <p>{`Tarjeta  : **** **** ${checkOut.payment.cardNumber}`}</p>
-                            <p>{`Fecha    : ${dayjs(checkOut.payment.transactionDate).format('DD/MMM/YYYY HH:mm')}`}</p>
-                            <p>{`Monto    : $ ${numberFormat(checkOut.payment.amount)}`}</p>
-                            <p>{`N° orden : ${checkOut.payment.orderNumber}`}</p>
-                            <button
-                                className="w-[260px] btn border-solid border-2 border-[#EE64C5] rounded-lg relative overflow-hidden bg-[#EE64C5] text-2xl py-1 px-12 text-center text-white mt-6">
-                                HOME
-                            </button>                            
-                        </div>
-                        <div className="m-auto">
-                            <MdOutlinePriceCheck className="border-8 border-lime-400 rounded-full bg-white text-lime-400 p-4" size="10rem"/>
-                        </div></div>}
+                            <div className="justify-start text-left uppercase tracking-widest">
+                                <h1 className="text-3xl mb-4 text-[#EE64C5]">Pago exitoso</h1>
+                                <p>{`Tarjeta  : **** **** ${checkOut.payment.cardNumber}`}</p>
+                                <p>{`Fecha    : ${dayjs(checkOut.payment.transactionDate).format('DD/MMM/YYYY HH:mm')}`}</p>
+                                <p>{`Monto    : $ ${numberFormat(checkOut.payment.amount)}`}</p>
+                                <p>{`N° orden : ${checkOut.payment.orderNumber}`}</p>
+                                <button
+                                    className="w-[260px] btn border-solid border-2 border-[#EE64C5] rounded-lg relative overflow-hidden bg-[#EE64C5] text-2xl py-1 px-12 text-center text-white mt-6">
+                                    HOME
+                                </button>
+                            </div>
+                            <div className="m-auto">
+                                <MdOutlinePriceCheck className="border-8 border-lime-400 rounded-full bg-white text-lime-400 p-4" size="10rem" />
+                            </div></div>}
                         {checkOut.paymentError && <>
                             <p className="text-[#EE64C5]">`Error!!!`</p>
                         </>}

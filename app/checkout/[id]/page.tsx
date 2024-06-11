@@ -8,7 +8,7 @@ export default async function Agenda({ params } : { params: { id: string } }) {
     return (        
         <main>
             <Navigation session={session} />
-            <CheckOut session={session} productId={params.id}/>
+            <CheckOut session={session} catalogId={params.id}/>
         </main>        
     );
 }

@@ -2,7 +2,7 @@ import mongoose, { Schema, models } from "mongoose";
 
 const priceLogSchema = new Schema(
   {
-    productId: {
+    catalogId: {
       type: mongoose.Types.ObjectId,
       required: true,
     },
