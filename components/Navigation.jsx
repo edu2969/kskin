@@ -1,6 +1,4 @@
 "use client"
-import { IoMdMenu, IoMdHome } from "react-icons/io"
-import { MdHistoryEdu, MdOutlineSupportAgent } from "react-icons/md"
 import { RiLogoutCircleLine } from "react-icons/ri"
 import { LuUserCircle2 } from "react-icons/lu"
 import { GiSelfLove } from "react-icons/gi"

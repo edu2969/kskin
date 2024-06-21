@@ -19,16 +19,16 @@ export const CatalogList = ({ session }) => {
                 var categories = []
                 var fullCatalog = {}
                 response.data.forEach(d => {
-                    if (categories.indexOf(d.serviceCategory) == -1) {
-                        categories.push(d.serviceCategory);
-                        fullCatalog[d.serviceCategory] = [d];
+                    if (categories.indexOf(d.specialty.name) == -1) {
+                        categories.push(d.specialty.name);
+                        fullCatalog[d.specialty.name] = [d];
                     } else {
-                        fullCatalog[d.serviceCategory].push(d);
+                        fullCatalog[d.specialty.name].push(d);
                     }
                 })
                 setCatalogs(fullCatalog);
-                setSelectedCategory(categories[0])
-                setSelectedService(fullCatalog[categories[0]][0])
+                setSelectedCategory(categories[0].specialty.name)
+                setSelectedService(fullCatalog[categories[0]][0].specialty.name)
             } catch (error) {
                 console.error('Error fetching catalog:', error);
             }
@@ -81,7 +81,7 @@ export const CatalogList = ({ session }) => {
                     {selectedService && (
                         <div className="fadeIn ml-8 mt-6 w-[420px]">
                             <p className="text-[#EE64C5] mb-4 uppercase tracking-widest">
-                                {selectedService.serviceCategory}
+                                {selectedService.specialty?.name || '??'}
                             </p>
                             <p className="mb-4">
                                 {selectedService.name}
@@ -98,7 +98,7 @@ export const CatalogList = ({ session }) => {
                                     </button>
                                 </Link>
                                 <p className="text-nowrap mt-8 ml-4">
-                                    <span className="font-bold text-[#EE64C5] text-xl">${numberFormat(selectedService.price)}</span>{selectedService.sesions && `selectedService.sessionCount /sesiones`} 
+                                    <span className="font-bold text-[#EE64C5] text-xl">${numberFormat(selectedService?.price || 0)}</span>{selectedService.sesions && `selectedService.sessionCount /sesiones`} 
                                 </p>
                             </div>
                         </div>

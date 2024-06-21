@@ -13,13 +13,14 @@ export const Contact = () => {
                     <div className="text-[#EE64C5] text-lg mb-4 uppercase tracking-widest">Concepción</div>
                     <div className="text-gray-600 mb-4">Cocharne 1298, oficina 102, 1er piso.</div>
                     <div className="text-[#EE64C5] text-lg mb-4 uppercase tracking-widest">Teléfono e email</div>
-                    <div className="text-gray-600 mb-4">+56 9 9999 9999</div>
-                    <div className="text-gray-600 mb-8">contacto@kskin.cl</div>
+                    <div className="text-gray-600 mb-4">+56 9 6615 4390</div>
+                    <div className="text-gray-600 mb-8">kskinspaccp@gmail.cl</div>
                     <div className="text-[#EE64C5] text-lg mb-2 uppercase tracking-widest">Redes sociales</div>
                     <div className="flex space-x-4">
-                        <FaInstagram className="text-[#EE64C5] text-2xl" />
-                        <FaFacebook className="text-[#EE64C5] text-2xl" />
+                        <FaInstagram className="text-[#EE64C5] text-2xl" alt="@kskin_spa" />
+                        <FaFacebook className="text-[#EE64C5] text-2xl" alt="" />
                         <FaWhatsapp className="text-[#EE64C5] text-2xl" />
+                        <div>TicTok: @kskin_spa</div>
                     </div>
                 </div>
             </div>

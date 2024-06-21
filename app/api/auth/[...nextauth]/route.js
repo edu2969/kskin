@@ -45,12 +45,18 @@ export const authOptions = {
       if(user) {
         token.id = user._id;
         token.email = user.email;
+        token.role = user.role;
       }
       return token;
     },
-    session({ session, token }) {
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id;
+        session.user.email = token.email;
+        session.user.role = token.role; // Include role in the session
+      }
       return session;
-    }
+    },
   }
 };
 

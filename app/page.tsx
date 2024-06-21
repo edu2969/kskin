@@ -17,7 +17,7 @@ export default async function Home() {
 
   return (
     <>
-      <Header/>
+      <Header session={session}/>
       <div className="max-w-screen-lg m-auto bg-white overflow-x-hidden overflow-y-hidden pb-24">
         <Welcome/>
         <CatalogList session={session} />

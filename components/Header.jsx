@@ -2,8 +2,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-export const Header = () => {
-    const [scrolled, setScrolled] = useState(false);
+export const Header = ({ session }) => {
+    const [scrolled, setScrolled] = useState(false);   
+
+    console.log("SESSION", session);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -39,7 +41,10 @@ export const Header = () => {
             <div className="w-full mx-auto mb-4">
                 <div className="w-full flex justify-center">
                     <div className="flex mr-20">
-                        <img width={42} height={60} className="mr-2 mt-2" src="/simple-logo-transparent.png" alt="logo KSkin" />
+                        {session?.user ? <Link className="p-0 m-0" href="/admin">
+                            <img width={42} height={60} className="mr-2 mt-2" src="/simple-logo-transparent.png" alt="logo KSkin" />
+                        </Link> 
+                        : <img width={42} height={60} className="mr-2 mt-2" src="/simple-logo-transparent.png" alt="logo KSkin" />}                        
                     </div>
                     <div className="flex space-x-6 mt-4 text-[#A4A5A1] text-lg">
                         <p className="hover:text-black hover:underline cursor-pointer uppercase tracking-widest">Inicio</p>

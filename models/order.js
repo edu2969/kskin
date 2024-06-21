@@ -1,4 +1,20 @@
 import mongoose, { Schema, models } from "mongoose";
+import ORDER_STATUS from "@/lib/constants"
+
+const sessionSchema = new Schema({
+    from: {
+        type: Date,
+        required: true,
+    },
+    to: {
+        type: Date,
+        required: true,
+    },
+    assist: {
+        type: Boolean,
+        required: true,
+    }
+})
 
 const orderSchema = new Schema(
     {
@@ -6,7 +22,11 @@ const orderSchema = new Schema(
             type: mongoose.Types.ObjectId,
             ref: "Catalog",
         },
-        price: {
+        amount: {
+            type: Number,
+            required: true,
+        },
+        remainingBalance: {
             type: Number,
             required: true,
         },
@@ -20,17 +40,19 @@ const orderSchema = new Schema(
         },
         status: {
             type: String,
+            enum: [
+                ORDER_STATUS.created,
+                ORDER_STATUS.confirmed,
+                ORDER_STATUS.attending,
+                ORDER_STATUS.notAttending,
+                ORDER_STATUS.error,
+            ],
             required: true,
         },
+        sessions: [sessionSchema]
     },
     { timestamps: true }
 );
 
 const Order = models.Order || mongoose.model("Order", orderSchema);
 export default Order;
-
-export const ORDER_STATUS = {
-    created: "CRE",
-    confirmed: "CON",
-    error: "ERR",
-}
