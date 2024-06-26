@@ -15,8 +15,8 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin", "specialist"],
-      default: "user",
+      enum: ["client", "admin", "specialist"],
+      default: "client",
     },
     rut: {
       type: String,
@@ -29,7 +29,10 @@ const userSchema = new Schema(
     },
     avatarImg: {
       type: String,
-    }
+    },
+    phone: {
+      type: Number,
+    },
   },
   { timestamps: true }
 );

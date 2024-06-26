@@ -8,9 +8,7 @@ export async function POST(req) {
   try {
     await connectMongoDB();
     const { id } = await req.json();
-    console.log("ID", id);
     const specialist = await Specialist.findOne({ userId: id }).lean();
-    console.log("IDS", specialist.specialtyIds);
     const catalogs = await Catalog.find({ specialtyId: { $in: specialist.specialtyIds }}).lean();      
     const catalogsDecorated = await Promise.all(
       catalogs.map(async (catalog) => {
