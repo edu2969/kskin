@@ -33,7 +33,7 @@ export const Header = ({ session }) => {
     }
 
     return (<nav
-        className={`z-40 fixed top-0 w-full transition-all duration-300 ${scrolled ? 'bg-transparent shadow-md scale-90 -mt-1' : 'bg-transparent'
+        className={`text-center z-40 fixed -left-1/4 w-[150%] transition-all duration-300 ${scrolled ? 'bg-transparent shadow-md scale-90 -mt-1' : 'bg-transparent'
             }`}
         style={{ backdropFilter: scrolled ? 'blur(10px)' : 'none' }}
     >

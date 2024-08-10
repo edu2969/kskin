@@ -2,10 +2,10 @@ import { connectMongoDB } from '@/lib/mongodb';
 import User from '@/models/user';
 import { NextResponse } from 'next/server';
 
-export async function GET(req, res) {
+export async function GET() {
   try {
     await connectMongoDB();
-    const clients = await User.find({ role: "client" }, 'name email').lean();
+    const clients = await User.find({ role: "client" }, "email name phone").lean();
     return NextResponse.json(clients);
   } catch (error) {
     console.error('Error fetching clients:', error);

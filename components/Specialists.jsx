@@ -2,13 +2,23 @@
 
 const PROFESIONALES = [{
     id: 1,
-    imagen: '/especialista_01.png',
-    nombre: 'Karen Troncoso',
-    titulo: 'Kinesiologa',
+    imagen: 'profesionales/profesional_01.png',
+    nombre: 'Catalina Troncoso',
+    titulo: 'Estilista Profesional',
 }, {
     id: 2,
-    imagen: '/especialista_02.png',
-    nombre: 'Catalina Troncoso',
+    imagen: 'profesionales/profesional_02.png',
+    nombre: 'Alexa Meya',
+    titulo: 'Estética facial',
+}, {
+    id: 3,
+    imagen: 'profesionales/profesional_03.png',
+    nombre: 'Karen Troncoso',
+    titulo: 'Kinesióloga',
+}, {
+    id: 4,
+    imagen: 'profesionales/profesional_04.png',
+    nombre: 'Marcela Guzmán',
     titulo: 'Estética facial',
 }]
 
@@ -17,7 +27,7 @@ export const Specialists = () => {
         <div id="seccion-profesionales">
             <p className="ml-12 my-12 text-2xl text-[#EE64C5] mb-4 uppercase tracking-widest">Nuestros especialistas</p>
             <div className="w-full flex justify-center items-center flex-col mt-12">
-                <div className="flex justify-center space-x-48">
+                <div className="flex justify-center space-x-12">
                     {PROFESIONALES.map((profesional) => (
                         <div key={profesional.id} className="text-center">
                             <div className="w-40 h-40 rounded-full overflow-hidden mx-auto mb-4">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import numberFormat from '@/app/utils/currency';
+import { IoIosArrowUp, IoIosArrowDown } from 'react-icons/io';
 
 export const CatalogList = ({ session }) => {
     const [catalogs, setCatalogs] = useState([]);
@@ -27,8 +28,8 @@ export const CatalogList = ({ session }) => {
                     }
                 })
                 setCatalogs(fullCatalog);
-                setSelectedCategory(categories[0].specialty.name)
-                setSelectedService(fullCatalog[categories[0]][0].specialty.name)
+                setSelectedCategory(categories[0])
+                setSelectedService(null)
             } catch (error) {
                 console.error('Error fetching catalog:', error);
             }
@@ -55,10 +56,10 @@ export const CatalogList = ({ session }) => {
                         {Object.keys(catalogs).map((category) => (
                             <div key={category}>
                                 <p
-                                    className="text-lg uppercase cursor-pointer text-[#5A5A5A] mb-4 hover:text-black"
+                                    className="flex text-lg uppercase cursor-pointer text-[#5A5A5A] mb-4 hover:text-black"
                                     onClick={() => handleCategoryClick(category)}
                                 >
-                                    {category}
+                                    {selectedCategory === category ? <IoIosArrowDown className="mt-1 mr-2"/> : <IoIosArrowUp className="mt-1 mr-2"/>} {category}
                                 </p>
                                 {selectedCategory === category && (
                                     <div className="text-sm pl-4">

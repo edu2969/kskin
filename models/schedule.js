@@ -1,15 +1,5 @@
 import mongoose, { Schema, models } from "mongoose";
 
-const noAvailableSchema = new Schema({
-    repeat: {
-        type: Boolean,
-        required: true,
-    },
-    days: { type: [Number], required: true },
-    dateFrom: { type: Date, required: true },
-    dateTo: { type: Date, required: true }
-}, { _id: false });
-
 const scheduleSchema = new Schema({
     specialistId: {
         type: mongoose.Types.ObjectId,
@@ -29,8 +19,17 @@ const scheduleSchema = new Schema({
     duration: {
         type: Number,
     },
+    allDay: {
+        type: Boolean,
+    },
+    fromDate: {
+        type: Date,
+    },
+    toDate: {
+        type: Date,
+    },
     noAvailables: {
-        type: noAvailableSchema,
+        type: [Number],
     },
 },
     { timestamps: true }

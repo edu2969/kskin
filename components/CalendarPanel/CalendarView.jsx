@@ -7,16 +7,18 @@ import { FiTrash2, FiSave, FiX } from "react-icons/fi"
 import axios from "axios";
 import { Loader } from "../Loader";
 import dayjs from "dayjs";
+import 'dayjs/locale/es'
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 
 dayjs.extend(customParseFormat);
+dayjs.locale("es")
 const COLORS = ["green", "blue", "red", "purple", "yellow", "orange", "indigo"]
 
-const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const daysOfWeek = Array.from({ length: 7 }, (_, i) => dayjs().day((i + 1) % 7).format("dddd"));
 const hours = Array.from({ length: 6 }, (_, i) => `${i * 2 + 8}:00`);
 
 export const Calendar = ({ session, height }) => {
-  const [currentWeek, setCurrentWeek] = useState(dayjs().startOf("week").add(1, "day"));
+  const [currentWeek, setCurrentWeek] = useState(dayjs().startOf("week"));
   const [events, setEvents] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRepeating, setIsRepeating] = useState(false);
@@ -31,7 +33,7 @@ export const Calendar = ({ session, height }) => {
     time: "09:00",
     durationMins: 45,
     cleanUpMins: 15,
-    noAlvailable: [],
+    noAvailables: [],
   });
 
   const [direction, setDirection] = useState(0);
@@ -72,7 +74,7 @@ export const Calendar = ({ session, height }) => {
   };
 
   const handleTimeSlotClick = (day, e) => {
-    const serviceName = Object.keys(catalogs)[0];
+    //console.log("Click DAY", day, day.format())
     const containerTop = e.currentTarget.getBoundingClientRect().top;
     const minY = (e.clientY - containerTop - 96);
     const clickY = minY < 0 ? 0 : minY;
@@ -80,24 +82,31 @@ export const Calendar = ({ session, height }) => {
     const hourHeight = e.currentTarget.offsetHeight / hoursInDay;
     const clickedHour = Math.floor(clickY / hourHeight);
     const clickedMinutes = Math.round((clickY % hourHeight) / (hourHeight / 4)) * 15;
-    const startTime = dayjs(day).hour(8 + clickedHour).minute(clickedMinutes);
-    const endTime = startTime.add(1, "hour");
+    const startTime = dayjs(day).hour(8 + clickedHour).minute(clickedMinutes);    
+    setSelectedCategory(null);
     setSelectedEvent({
-      ...selectedEvent, day,      
+      ...selectedEvent, day, startTime,      
       type: "schedule",
+      clientId: null,
+      clientName: "",
+      phone: 56,
+      email: "",
       specialistId: session.user?.id,
       time: `${startTime.format("HH:mm")}`,
-      serviceId: catalogs[serviceName][0]._id,
-      category: serviceName,
-      serviceName: catalogs[serviceName][0].specialty.name,
-      color: COLORS[Object.keys(catalogs).indexOf(serviceName)],
+      title: "",
+      catalogId: "",
+      specialtyId: "",
+      serviceName: "",
+      color: "",
+      isValid: false,
     });
+    setQuery("");
     setIsDialogOpen(true);
   };
 
   const handleCheckboxChange = (day) => {
-    let newRule = [...selectedEvent.noAlvailable];
-    if (day === "Días hábiles") {
+    let newRule = [...selectedEvent.noAvailables];
+    if (day === "Se repite") {
       newRule = newRule.includes(day)
         ? newRule.filter((d) => d !== day)
         : ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -115,47 +124,64 @@ export const Calendar = ({ session, height }) => {
         newRule = newRule.filter((d) => d !== "Días hábiles" && d !== "Todos los días");
       }
     }
-    setSelectedEvent({ ...selectedEvent, noAlvailable: newRule });
+    setSelectedEvent({ 
+      ...selectedEvent, 
+      noAvailables: newRule, 
+      isValid: validateEvent({
+        ...selectedEvent, 
+        noAvailables: newRule, 
+      }) 
+    });
   };
 
   const toggleAllDayCheckbox = () => {
-    setIsAllDay(!isAllDay);
-    if (!isAllDay) {
-      setSelectedEvent({
+    setIsAllDay(!isAllDay);    
+    setSelectedEvent({
+      ...selectedEvent,
+      allDay: !isAllDay,
+      isValid: validateEvent({
         ...selectedEvent,
-        time: "08:00",
-        noAlvailable: [],
-      });
-    } else {
-      setSelectedEvent({
-        ...selectedEvent,
-        time: "09:00", // Ajusta esto según tus necesidades
-        noAlvailable: [],
-      });
-    }
-  };
+        allDay: !isAllDay,
+      })
+    })
+  }
 
   const handleSaveEvent = async () => {
     console.log("SELECTED_EVENT", selectedEvent);
-    const schedule = await axios.post('/api/schedule', selectedEvent.type === 'unavailable' ? {
-      id: selectedEvent._id,
+    let reg = {
       specialistId: selectedEvent.specialistId,
-      startDate: selectedEvent.startDate,
-      durationMins: selectedEvent.durationMins,
-      cleanUpMins: selectedEvent.cleanUpMins,
-      noAlvailable: selectedEvent.noAlvailable,
-    } : {
-      id: selectedEvent._id,
-      specialistId: selectedEvent.specialistId,
-      clientId: selectedEvent.clientId,
-      phone: selectedEvent.phone,
-      email: selectedEvent.email,
-      catalogId: selectedEvent.catalogId,
-      serviceId: selectedEvent.serviceId,
-      startDate: selectedEvent.startDate,
-      durationMins: selectedEvent.durationMins,
-      cleanUpMins: selectedEvent.cleanUpMins,
-    })
+      startDate: selectedEvent.startTime,      
+    }
+    if(selectedEvent.type == "schedule") {
+      reg.catalogId = selectedEvent.catalogId;
+      reg.durationMins = selectedEvent.durationMins;
+      if(reg.cleanUpMins) {
+        reg.cleanUpMins = selectedEvent.cleanUpMins;
+      }
+    }
+    if(selectedEvent.clientId) {
+      reg.clientId = selectedEvent.clientId;
+      if(selectedEvent.clientName) {
+        reg.clientName = selectedEvent.clientName;
+      }
+      if(selectedEvent.phone) {
+        reg.phone = selectedEvent.phone;
+      }
+    }
+    if(selectedEvent.allDay) {
+      reg.startDate = selectedEvent.day
+        .startOf("day").toDate();
+      reg.allDay = true;
+    }
+    if(selectedEvent.isRepeating) {
+      reg.fromDate = selectedEvent.fromDate;
+      reg.toDate = selectedEvent.toDate;
+    }
+    if(selectedEvent.id) {
+      reg.id = selectedEvent._id;
+    }
+    console.log("POSTING", reg);
+    const schedule = await axios.post('/api/schedule', reg)
     if (!selectedEvent._id) {
       setSelectedEvent({ ...selectedEvent, _id: schedule._id });
       setEvents((prevEvents) => [...prevEvents,])
@@ -179,24 +205,36 @@ export const Calendar = ({ session, height }) => {
   };
 
   const getEventHeight = (startTime, durationMins) => {
-    console.log("TEST_rapido", dayjs("12:00", "HH:mm").format())
-
-    console.log("START_TIME|" + startTime + "|DURATION_MINS", durationMins);
-    
     const start = dayjs(startTime, "HH:mm");
-    const end = start.add(durationMins, "minutes");
-    
+    const end = start.add(durationMins, "minutes");    
     const [startHour, startMinute] = start.format("HH:mm").split(":").map(Number);
-    const [endHour, endMinute] = end.format("HH:mm").split(":").map(Number);
-    
+    const [endHour, endMinute] = end.format("HH:mm").split(":").map(Number);    
     const duration = (endHour - startHour) * EVENT_HEIGHT_FACTOR + (endMinute - startMinute);
     return duration * ROW_HEIGHT_FACTOR;
   };
 
   const calculateEndTime = (startTime, durationMins) => {
-    console.log(">>>", startTime, durationMins)
     return dayjs(startTime, "HH:mm").add(durationMins, "minute").format("HH:mm");
   };
+
+  const validateEvent = (evnt) => {
+    var isValid;
+    console.log("VALIDANDO", evnt)
+    if(evnt.type === "schedule") {
+      isValid = (evnt.clientId != null 
+      || (evnt.clientId == null 
+        && evnt.clientName != ""
+        && evnt.email != ""))
+        && evnt.catalogId != ""
+        && evnt.specialtyId != "";
+    } else if(evnt.type === "unavailable") {
+      isValid = (evnt.isRepeating && evnt.fromDate
+        && evnt.toDate && evnt.noAvailables?.length > 0)
+        || evnt.allDay;
+    }
+    console.log("ISVALID", isValid)
+    return isValid ? true : false;
+  }
 
   const [catalogs, setCatalogs] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -211,6 +249,7 @@ export const Calendar = ({ session, height }) => {
         const response = await axios.post(`/api/catalog/bySpecialist/`, { id: session?.user?.id });
         var categories = []
         var fullCatalog = {}
+
         response.data.forEach(d => {
           if (categories.indexOf(d.specialty.name) == -1) {
             categories.push(d.specialty.name);
@@ -218,63 +257,57 @@ export const Calendar = ({ session, height }) => {
           } else {
             fullCatalog[d.specialty.name].push(d);
           }
-        })
+        })        
         setCatalogs(fullCatalog);
-        setSelectedCategory(fullCatalog[Object.keys(fullCatalog)[0]])
-        setSelectedService({ 
-          _id: fullCatalog[Object.keys(fullCatalog)[0]][0].specialty._id, 
-          serviceName: fullCatalog[Object.keys(fullCatalog)[0]][0].specialty.name 
+        setSelectedCategory(null)
+        setSelectedService(null)
+
+        console.log("response1.data", response.data)
+
+        const resp2 = await axios.post(`/api/schedule/bySpecialist/`, { id: session?.user?.id });
+        const decoratedEvents = resp2?.data.map(s => {
+          const catalog = response.data.find(c => {
+            return c._id == s.catalogId
+          })
+          return s.clientId ? {
+            id: s._id,
+            type: "schedule",
+            title: catalog.specialty.name,
+            specialistId: session.user?._id,
+            startTime: s.startDate,
+            day: dayjs(s.startDate),
+            time: dayjs(s.startDate).format("HH:mm"),
+            clientId: s.clientId,            
+            catalogId: catalog._id,
+            serviceName: catalog.name,
+            specialtyId: catalog.specialtyId,
+            durationMins: s.duration,
+            cleanUpMins: catalog.cleanUpMins,
+            color: COLORS[categories.indexOf(catalog.specialty.name)]
+          } : {
+            id: s.id,
+            type: "unavailable",
+            time: dayjs(s.startDate).format("HH:mm"),
+            startDate: dayjs(s.startDate).toDate(),
+            endTime: s.endDate,
+            allDay: s.allDay,
+            durationMins: s.durationMins,
+            noAvailables: s.noAvailables
+          };
         })
-        setSelectedEvent({
-          ...selectedEvent, 
-          catalogId: fullCatalog[Object.keys(fullCatalog)[0]][0].specialty._id, 
-          serviceName: fullCatalog[Object.keys(fullCatalog)[0]][0].specialty.name 
-        })
+        console.log("DecoratedEvents", decoratedEvents)
+        setEvents(decoratedEvents)
+        setLoadingEvents(false);
         fetchClients();
       } catch (error) {
         console.error('Error fetching catalog:', error);
       }
     };
 
-    const fetchSchedule = async () => {
-      try {
-        console.log("CALLING", `/api/schedule/bySpecialist/`, { id: session?.user?.id });
-        const response = await axios.post(`/api/schedule/bySpecialist/`, { id: session?.user?.id });
-        console.log("RESPONSE SCHEDULE", response?.data)
-        const eventSet = response?.data.map(d => {
-          const index = catalogs[d.category].findIndex(s => s._id === d.catalogId);
-          const specialty = catalogs[d.category][index].specialty;
-          return d.clientId ? {
-            id: d.id,
-            type: "schedule",
-            serviceName: catalogs[d.category][index].name,
-            clientId: d.clientId,
-            category: specialty.name,
-            catalogId: catalogs[d.category][index]._id,
-            serviceId: d.serviceId,
-            startDate: d.startDate,
-            durationsMins: d.durationMins,
-            cleanUpMins: d.cleanUpMins,
-          } : {
-            id: d.id,
-            type: "unavailable",
-            startDate: d.startDate,
-            durationMins: d.durationMins,
-            noAvailable: d.noAvailable,
-          }
-        })
-        setEvents(eventSet)
-        setLoadingEvents(false);
-      } catch (error) {
-        console.error('Error fetching catalog:', error);
-      }
-    }
-
     const fetchClients = async () => {
       try {
-        const response = await axios.get('/api/client');
-        setSuggestions(response.data);
-        fetchSchedule();
+        const response = await axios.get('/api/client');        
+        setSuggestions(response.data);        
       } catch (error) {
         console.error('Error fetching clients:', error);
       }
@@ -336,8 +369,8 @@ export const Calendar = ({ session, height }) => {
                 <div key={offset} className="flex" style={{ width: "50%" }}>
                   {daysOfWeek.map((day, index) => (
                     <div
-                      key={index}
-                      className="border-l p-2 flex-shrink-0 relative"
+                      key={`block_${index}`}
+                      className="border-l p-2 flex-shrink-0 relative cursor-crosshair"
                       style={{ width: "calc(100% / 7)" }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -353,21 +386,22 @@ export const Calendar = ({ session, height }) => {
                           {currentWeek.add(index + offset * 7, "day").date()}
                         </div>
                       </div>
-                      <div key={`div_${index}`} className="relative mt-4" style={{ minHeight: "300px" }}>
+                      <div className="relative mt-4" style={{ minHeight: "300px" }}>
                         <div className="absolute inset-0" />
                         {!loadingEvents && events
                           .filter((event) =>
                             dayjs(event.day).isSame(currentWeek.add(index + offset * 7, "day"), "day")
                           )
-                          .map((event) => (
-                            <div
-                              key={event._id}
-                              className={`absolute left-0 right-0 px-2 py-0.5 text-sm rounded shadow-md cursor-pointer ${event.type === "unavailable"
+                          .map((event, indiceEvento) => (
+                            <div                            
+                              key={`_calendarObj_${indiceEvento}`}
+                              className={`absolute z-10 left-0 right-0 px-2 py-0.5 text-sm rounded shadow-md cursor-pointer ${event.type === "unavailable"
                                 ? "bg-pink-200"
                                 : `bg-${event.color}-200 border-t-2 border-t-${event.color}-500`}`}
                               style={{
-                                top: `${getTimePosition(event.time)}px`,
-                                height: `${getEventHeight(event.time, event.durationMins + event.cleanUpMins)}px`,
+                                top: `${getTimePosition(event.allDay ? "08:00" : event.time)}px`,
+                                height: `${getEventHeight(event.allDay ? "08:00" : event.time, 
+                                  event.allDay ? 636 : (event.durationMins + (event.cleanUpMins || 0)))}px`,
                                 backgroundImage:
                                   event.type === "unavailable"
                                     ? "linear-gradient(135deg, pink 25%, white 25%, white 50%, pink 50%, pink 75%, white 75%, white 100%)"
@@ -375,15 +409,48 @@ export const Calendar = ({ session, height }) => {
                                 backgroundSize: event.type === "unavailable" ? "20px 20px" : "none",
                               }}
                               onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedEvent(event);
+                                e.stopPropagation()
+                                console.log("SUG", suggestions)
+                                console.log("EVENT", event)
+                                const user = suggestions.find(u => u._id == event.clientId);
+                                setSelectedEvent({
+                                  ...event,
+                                  clientName: user.name,
+                                  phone: user.phone,
+                                  email: user.email,
+                                  isValid: true,
+                                });                                
+                                setQuery(user.name);
+                                setIsDialogOpen(true);
                               }}
                             >
-                              <div className={`font-bold text-xs text-${event.color}-500`}>{event.category}</div>
-                              <div className={`text-xs text-${event.color}-500`}>{event.time} - {calculateEndTime(event.time, event.durationMins + event.cleanUpMins)}</div>
+                              {event.type === "schedule" && <div className={`font-bold text-xs text-${event.color}-500`}>{event.title}</div>}
+                              {!event.allDay && <div className={`text-xs text-${event.type === "schedule" ? event.color : 'black'}-500 ${event.type === "unavailable" ? "font-bold" : ""}`}>{event.time} - {calculateEndTime(event.time, event.durationMins + (event.cleanUpMins || 0))}</div>}
                             </div>
                           ))}
+
+
+
+                        <div className="absolute inset-0" />
+                        <div className={`absolute left-0 right-0 px-2 py-0.5 text-sm rounded shadow-md cursor-not-allowed bg-pink-200`}
+                          style={{
+                            top: `${getTimePosition(index < 5 ? "13:00" : "8:00")}px`,
+                            height: `${getEventHeight(index < 5 ? "13:00" : "8:00", index < 5 ? 60 : 636)}px`,
+                            backgroundImage: "linear-gradient(135deg, pink 25%, white 25%, white 50%, pink 50%, pink 75%, white 75%, white 100%)",
+                            backgroundSize: "20px 20px"
+                          }}
+                        >
+                          <span className={`text-xs text-white bg-pink-500 rounded px-1 font-bold`}>{index < 5 ? "13:00 - 14:00" : "08:00 - 19:00"}</span>
+                        </div>
+
+
                       </div>
+
+
+
+                      
+
+
                     </div>
                   ))}
                 </div>
@@ -405,7 +472,7 @@ export const Calendar = ({ session, height }) => {
         <Dialog
           open={isDialogOpen}
           onClose={handleCloseDialog}
-          className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50"
+          className="fixed z-20 inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50"
         >
           <div className="bg-white rounded p-6 mx-auto max-w-xl">
             <div className="relative h-0 flex justify-end">
@@ -416,8 +483,9 @@ export const Calendar = ({ session, height }) => {
                 <FiX className="h-6 w-6" />
               </button>
             </div>
-            <DialogTitle className="font-bold text-lg">Nueva cita</DialogTitle>
-            <div className="flex flex-wrap">
+            <DialogTitle className="font-bold text-lg">Evento de calendario</DialogTitle>
+            <div className="flex flex-wrap w-full">
+
               <div className="mt-4 w-1/2">
                 <label className="block text-sm font-bold text-gray-700">Tipo</label>
                 <div className="mb-2">
@@ -426,7 +494,10 @@ export const Calendar = ({ session, height }) => {
                     onChange={(e) => {
                       setIsRepeating(false);
                       setIsAllDay(false);
-                      setSelectedEvent({ ...selectedEvent, type: e.target.value })
+                      setSelectedEvent({ 
+                        ...selectedEvent, 
+                        type: e.target.value, 
+                        isValid: validateEvent({ ...selectedEvent, type: e.target.value }) })
                     }}
                     className="form-select mt-1 w-full border-2 pl-2 border-gray-200 rounded-md pt-2.5 pb-2.5  max-w-xs"
                   >
@@ -436,17 +507,6 @@ export const Calendar = ({ session, height }) => {
                 </div>
               </div>
 
-              {selectedEvent.type === "unavailable" && (
-                <div className="mt-14 ml-6">
-                  <input
-                    type="checkbox"
-                    checked={isRepeating}
-                    onChange={() => setIsRepeating(!isRepeating)}
-                    className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-                  />
-                  <span className="ml-2">Se repite</span>
-                </div>
-              )}
               {selectedEvent.type === "schedule" && (
                 <>
                   <div className="w-1/2 mt-4">
@@ -461,9 +521,10 @@ export const Calendar = ({ session, height }) => {
                             setSelectedEvent({...selectedEvent, 
                               clientId: null,
                               email: "",
-                              phone: ""
+                              phone: "",
+                              isValid: false,
                             });
-                          } 
+                          }
                           setQuery(e.target.value)
                         }}
                         onFocus={() => setFocus(true)}
@@ -483,7 +544,13 @@ export const Calendar = ({ session, height }) => {
                                     clientId: user._id,
                                     clientName: user.name || '',
                                     email: user.email || '',
-                                    phone: user.phone || 56
+                                    phone: user.phone || 56,
+                                    isValid: validateEvent({ ...selectedEvent,  
+                                      clientId: user._id,
+                                      clientName: user.name || '',
+                                      email: user.email || '',
+                                      phone: user.phone || 56,                                      
+                                    }),
                                   })
                                   setQuery(user.name)
                                   setFocus(false)                     
@@ -501,9 +568,16 @@ export const Calendar = ({ session, height }) => {
                     <input type="email" value={selectedEvent.email}
                       placeholder="correo@dominio.cc"
                       className="form-select mt-1 block w-full border-2 border-gray-200 rounded-md p-2 max-w-xs"
-                      onChange={(e) =>
-                        setSelectedEvent({ ...selectedEvent, email: e.target.value })
-                      } />
+                      onChange={(e) => {
+                        setSelectedEvent({ 
+                          ...selectedEvent, 
+                          email: e.target.value, 
+                          isValid: validateEvent({ 
+                            ...selectedEvent,  
+                            email: e.target.value
+                          }) 
+                        })
+                      }} />
                   </div>
                   <div className="mt-4 w-1/2">
                     <label className="pl-10 block text-sm font-bold text-gray-700">Teléfono</label>
@@ -520,21 +594,35 @@ export const Calendar = ({ session, height }) => {
                     <label className="block mb-1 text-sm font-bold text-gray-700">Categoría</label>
                     <div className="mb-2 mr-4">
                       <select
-                        value={selectedEvent.category}
+                        value={selectedEvent.title}
                         onChange={(e) => {
-                          setSelectedCategory(catalogs[e.target.value]);
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            category: e.target.value,
-                            catalogId: catalogs[e.target.value][0].specialtyId,
-                            serviceId: catalogs[e.target.value][0].specialty._id,
-                            serviceName: catalogs[e.target.value][0].specialty.name,
-                            color: COLORS[Object.keys(catalogs).indexOf(e.target.value)],
-                          })
-                        }
-                        }
+                          if(e.target.value != "") {
+                            setSelectedCategory(catalogs[e.target.value]);
+                            setSelectedEvent({
+                              ...selectedEvent,
+                              title: e.target.value,
+                              catalogId: "",
+                              specialtyId: "",
+                              serviceName: "",
+                              color: COLORS[Object.keys(catalogs).indexOf(e.target.value)],
+                              isValid: false,
+                            })
+                          } else {
+                            setSelectedCategory(null);
+                            setSelectedEvent({
+                              ...selectedEvent,
+                              title: "",
+                              catalogId: "",
+                              specialtyId: "",
+                              serviceName: "",
+                              color: null,
+                              isValid: false,
+                            })
+                          }                          
+                        }}
                         className="form-select mt-1 w-full border-2 border-gray-200 rounded-md pl-2 py-2.5 max-w-xs"
                       >
+                        <option value="">Seleccione una</option>
                         {Object.keys(catalogs).length > 0 &&
                           Object.keys(catalogs)
                             .map(c => (<option key={c} value={c}>{c}</option>)
@@ -546,26 +634,78 @@ export const Calendar = ({ session, height }) => {
                     <label className="text-sm font-bold text-gray-700">Tratamiento</label>
                     <div className="mb-2">
                       <select
-                        value={selectedEvent.serviceId}
+                        value={selectedEvent.specialtyId}
                         onChange={(e) => {
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            serviceName: e.target.value,
-                            serviceId: e.target.id,
-                          })
+                          const selectedOption = e.target.options[e.target.selectedIndex];
+                          const specialtyId = selectedOption.getAttribute('id');
+                          console.log("OPTION", selectedOption)
+                          console.log("TITLE", selectedEvent.title)
+                          if (selectedOption.value !== "") {
+                            console.log("BUSCANDO", selectedEvent.title, "EN", catalogs[selectedEvent.title])
+                            setSelectedEvent({
+                              ...selectedEvent,
+                              serviceName: selectedOption.value,
+                              catalogId: catalogs[selectedEvent.title].find(c => c._id == specialtyId)._id,
+                              specialtyId,
+                              isValid: validateEvent({
+                                ...selectedEvent,
+                                serviceName: selectedOption.value,
+                                catalogId: catalogs[selectedEvent.title].find(c => c._id == specialtyId)._id,
+                                specialtyId
+                              }),
+                            });
+                          } else {
+                            setSelectedEvent({
+                              ...selectedEvent,
+                              title: "",
+                              serviceName: "",
+                              catalogId: "",
+                              specialtyId: "",
+                              isValid: false,
+                            });
+                          }
                         }}
                         className="form-select mt-1 border-2 border-gray-200 rounded-md pl-2 py-2.5 w-full"
                       >
-                        {selectedCategory && selectedCategory?.length > 0 && selectedCategory
-                          .map(c => (<option key={c._id} id={c._id}>{c.name.substring(0, 35) + (c.name.length > 35 ? '…' : '')}</option>)
-                          )}
+                        <option value="">Seleccione uno</option>
+                        {selectedCategory && selectedCategory.length > 0 && selectedCategory.map(c => (
+                          <option key={c._id} value={c.name} id={c._id}>
+                            {c.name.substring(0, 35) + (c.name.length > 35 ? '…' : '')}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
                 </>
+              )}              
+
+              {selectedEvent.type === "unavailable" && (
+                <div className="w-1/4 mt-14 ml-6">
+                  <input
+                    type="checkbox"
+                    checked={isRepeating}
+                    onChange={() => {
+                      setIsRepeating(!isRepeating)
+                    }}
+                    className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                  />
+                  <span className="ml-2">Se repite</span>
+                </div>
               )}
 
-              <div className="w-1/3 mt-4">
+              {selectedEvent.type === "unavailable" && <div className="mt-14">
+                <input
+                  type="checkbox"
+                  checked={isAllDay}
+                  onChange={() => {
+                    toggleAllDayCheckbox();
+                  }}
+                  className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                />
+                <span className="ml-2">Todo el día</span>
+                </div>}
+
+              {!isAllDay && <div className="w-1/3 mt-4">
                 <label className="block text-sm font-bold text-gray-700">Hora de inicio</label>
                 <input
                   type="time"
@@ -579,23 +719,23 @@ export const Calendar = ({ session, height }) => {
                   className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2"
                   disabled={isAllDay}
                 />
+              </div>}
 
-              </div>
-              <div className="w-1/3 mt-4 pl-4">
+              {!isAllDay && <div className="w-1/3 mt-4 pl-4">
                 <label className="block text-sm font-bold text-gray-700">Duración mins.</label>
                 <input
                   type="number"
                   value={selectedEvent.durationMins}
-                  onChange={(e) =>
+                  onChange={(e) => 
                     setSelectedEvent({
                       ...selectedEvent,
                       durationMins: Number(e.target.value),
-                    })
-                  }
+                    })}
                   className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2 pb-2.5"                  
                 />
-              </div>
-              <div className="w-1/3 mt-4 pl-4">
+              </div>}
+
+              {selectedEvent.type === "schedule" && <div className="w-1/3 mt-4 pl-4">
                 <label className="block text-sm font-bold text-gray-700">Limpieza mins.</label>
                 <input
                   type="number"
@@ -608,21 +748,9 @@ export const Calendar = ({ session, height }) => {
                   }
                   className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2 pb-2.5"                  
                 />
-              </div>
-              
-              {selectedEvent.type === "unavailable" && <div>
-                <div className="mt-14 ml-6">
-                <input
-                  type="checkbox"
-                  checked={isAllDay}
-                  onChange={toggleAllDayCheckbox}
-                  className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-                />
-                <span className="ml-2">Todo el día</span>
-                </div>
-              </div>}
+              </div>}              
 
-              {(selectedEvent.type === "unavailable" && isRepeating) && <><div className="mt-4">
+              {(selectedEvent.type === "unavailable" && isRepeating) && <div className="flex w-full"><div className="w-1/2 mt-4 mr-4">
                 <label className="block text-sm font-bold text-gray-700">Fecha de inicio</label>
                 <input
                   type="date"
@@ -630,13 +758,13 @@ export const Calendar = ({ session, height }) => {
                   onChange={(e) =>
                     setSelectedEvent({
                       ...selectedEvent,
-                      day: dayjs(e.target.value).toDate(),
+                      fromDate: dayjs(e.target.value).toDate(),
                     })
                   }
                   className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2"
                 />
               </div>
-                <div className="mt-4">
+                <div className="w-1/2 mt-4">
                   <label className="block text-sm font-bold text-gray-700">Fecha de fin</label>
                   <input
                     type="date"
@@ -644,12 +772,12 @@ export const Calendar = ({ session, height }) => {
                     onChange={(e) =>
                       setSelectedEvent({
                         ...selectedEvent,
-                        endDate: dayjs(e.target.value).toDate(),
+                        toDate: dayjs(e.target.value).toDate(),
                       })
                     }
                     className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2"
                   />
-                </div></>}
+                </div></div>}
 
               {isRepeating && (
                 <div className="mt-4">
@@ -660,7 +788,7 @@ export const Calendar = ({ session, height }) => {
                         <input
                           type="checkbox"
                           checked={
-                            selectedEvent.noAlvailable.includes(day) ||
+                            selectedEvent.noAvailables.includes(day) ||
                             day === dayjs(selectedEvent.day).format("dddd")
                           }
                           onChange={() => handleCheckboxChange(day)}
@@ -683,7 +811,8 @@ export const Calendar = ({ session, height }) => {
               </button>
               <button
                 onClick={handleSaveEvent}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded"
+                disabled={!selectedEvent.isValid && 'disabled'}
+                className={`flex items-center px-4 py-2 bg-${!selectedEvent.isValid ? 'slate-300' : 'green-500'} text-white rounded`}
               >
                 <FiSave className="mr-2" /> Guardar
               </button>

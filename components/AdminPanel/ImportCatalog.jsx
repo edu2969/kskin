@@ -26,7 +26,7 @@ export const ImportCatalog = ({ session }) => {
                 id: item.ID,
                 name: item.Nombre,
                 price: item.Precio,
-                duration: item.Duración,
+                durationMins: Number(item.Duración),
                 serviceCategory: item['Categoría de servicio'],
                 description: item.Descripción,
                 reserveOnline: item['Reservar online'] == 'Sí',

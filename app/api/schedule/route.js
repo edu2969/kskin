@@ -8,12 +8,12 @@ export async function POST(req) {
   try {
     await connectMongoDB();
     const { id, specialistId, 
-      clientId, clientName, email, phone, catalogId, serviceId, startDate, 
-      durationMins, cleanUpMins, noAvailables 
+      clientId, clientName, email, phone, catalogId, startDate, 
+      durationMins, cleanUpMins, allDay, fromDate, toDate, noAvailables 
     } = await req.json();
     console.log("POSTING", { id, specialistId, 
-      clientId, clientName, email, phone, catalogId, serviceId, startDate, 
-      durationMins, cleanUpMins, noAvailables 
+      clientId, clientName, email, phone, catalogId, startDate, 
+      durationMins, cleanUpMins, allDay, fromDate, toDate, noAvailables 
     })
     const catalog = await Catalog.findOne({ _id: catalogId }).lean();
     if(catalog) {
@@ -33,21 +33,30 @@ export async function POST(req) {
         email, clientName, phone, role: "client", password: "test",
       })
     }
-    let schedule;    
-    if (id) {
+    let schedule;
+    let reg = clientId != undefined ? {
+      specialistId, clientId, catalogId, startDate, duration: durationMins 
+    } : {
+      specialistId, startDate
+    }
+    if(allDay != undefined) {
+      reg.allDay = true;
+    }
+    if(fromDate != undefined) {
+      reg.fromDate = fromDate;
+      reg.toDate = toDate;
+      reg.noAvailables = noAvailables;
+    }
+    if (id) {  
+      console.log("UPDATING", reg);    
       schedule = await Schedule.findByIdAndUpdate(
         id,
-        !client
-        ? { specialistId, startDate, durationMins, noAvailables }
-        : { specialistId, clientId, catalogId, serviceId, startDate, durationMins, cleanUpMins },
+        reg,
         { new: true, upsert: true, setDefaultsOnInsert: true }
       ).lean();
     } else {
-      schedule = await Schedule.create(!client ? {
-        specialistId, startDate, durationMins, cleanUpMins, noAvailables
-      } : {
-        specialistId, clientId, catalogId, serviceId, startDate, durationMins, cleanUpMins
-      });
+      console.log("CREATING", reg);
+      schedule = await Schedule.create(reg);
     }
     return NextResponse.json(schedule);
   } catch (error) {

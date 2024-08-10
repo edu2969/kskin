@@ -4,12 +4,15 @@ import { useForm } from "react-hook-form";
 import { TbBrandGoogleFilled } from "react-icons/tb"
 import { FaEye, FaEyeSlash, FaMeta } from "react-icons/fa6"
 import { FaCheckCircle } from "react-icons/fa"
+import { GoClockFill } from "react-icons/go";
+import { LiaMoneyBillSolid } from "react-icons/lia";
+import { MdNavigateBefore, MdNavigateNext, MdOutlinePriceCheck } from "react-icons/md"
 import { useEffect, useRef, useState } from "react"
 import { signIn } from "next-auth/react"
 import { Loader } from "./Loader";
-import { MdNavigateBefore, MdNavigateNext, MdOutlinePriceCheck } from "react-icons/md"
 import numberFormat from "@/app/utils/currency"
-import dayjs from "dayjs"
+import dayjs from "dayjs";
+import 'dayjs/locale/es';
 
 dayjs.locale("es");
 
@@ -46,6 +49,7 @@ export const CheckOut = ({ session, catalogId }) => {
     const [error, setError] = useState("");
     const [login, setLogin] = useState(false);
     const [confirmando, setConfirmando] = useState(false);
+    const [diaSeleccionado, setDiaSeleccionado] = useState(null);
 
     const [checkOut, setCheckOut] = useState({
         mes: '',
@@ -124,7 +128,7 @@ export const CheckOut = ({ session, catalogId }) => {
         console.log("INIT CALENDARIO");
         const mes = dayjs().format('MMMM');
         const numeroMes = dayjs().get("month");
-        var diaSemana = dayjs().endOf("week").add(2, "day").startOf("date");
+        var diaSemana = dayjs().endOf("week").add(1, "day").startOf("date");
         var dias = [];
         var horarios = [{
             ocupado: false,
@@ -143,7 +147,7 @@ export const CheckOut = ({ session, catalogId }) => {
             desde: { hrs: 17, min: 0 },
             hasta: { hrs: 18, min: 45 },
         }]
-        for (var i = 0; i < 6; i++) {
+        for (var i = 0; i < 5; i++) {
             var dia = {
                 numeroDia: diaSemana.date(),
                 horarios: horarios.map(h => {
@@ -253,33 +257,33 @@ export const CheckOut = ({ session, catalogId }) => {
     };
 
     return <>
-        <div className="max-w-screen-lg m-auto bg-white overflow-x-hidden pb-24">
+        <div className="w-full bg-slate-100 overflow-x-hidden pb-24 h-screen">
 
-            <div className="flex w-full pt-8 pb-4">
-                <div className={`flex w-1/3 ${session?.user ? 'bg-white' : 'bg-transparent'} text-[#EE64C5] rounded-2xl rounded-r-none justify-center h-10`}>
-                    <div>
-                        {session?.user ? <FaCheckCircle className="text-lime-500 mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-pink-300 h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">1</p>}
+            <div className="flex w-full pt-8 pb-4 justify-center">
+                <div className={`flex w-1/4 justify-center h-10`}>
+                    <div className={`${session?.user ? 'text-green-500' : 'text-[#b0a3ac]'}`}>
+                        {session?.user ? <FaCheckCircle className="mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-pink-300 h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">1</p>}
                     </div>
-                    <p className="font-extrabold text-2xl ml-4 mt-1">
-                        {session?.user ? 'Identificado' : 'Quién eres'}
+                    <p className={`font text-xl ml-4 mt-1 ${session?.user ? 'text-green-500' : 'text-[#EE64C5]'}`}>
+                        {session?.user ? ('HOLA ' + session?.user.name.split(" ")[0].toUpperCase()) : 'QUIÉN ERES'}
                     </p>
                 </div>
-                <div className={`flex w-1/3 border-r-4 border-l-4 border-white justify-center h-10 ${checkOut?.sesionesOk ? 'bg-white' : 'bg-transparent'} text-[#EE64C5]`}>
+                <div className={`flex w-1/4 justify-center h-10 ${checkOut?.sesionesOk ? 'text-green-500' : session?.user ? 'text-[#EE64C5]' : 'text-[#b0a3ac]'}`}>
                     <div>
-                        {checkOut?.sesionesOk ? <FaCheckCircle className="text-lime-500 mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-pink-300 h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">2</p>}
+                        {checkOut?.sesionesOk ? <FaCheckCircle className="text-lime-500 mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-white h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">2</p>}
                     </div>
-                    <p className="font-extrabold text-2xl ml-4 mt-1">Fecha / Confirmación</p>
+                    <p className="font text-lg ml-4 mt-1">FECHA / CONFIRMACIÓN</p>
                 </div>
-                <div className={`flex w-1/3 justify-center h-10 ${checkOut?.productoConfirmado ? 'bg-white rounded-r-xl' : 'bg-transparent'} text-[#EE64C5]`}>
+                <div className={`flex w-1/4 justify-center h-10 ${checkOut?.productoConfirmado ? 'text-green-500' : 'text-[#b0a3ac]'}`}>
                     <div>
                         {checkOut?.productoConfirmado ? <FaCheckCircle className="text-lime-500 mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-pink-300 h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">3</p>}
                     </div>
-                    <p className="font-extrabold text-2xl ml-4 mt-1">Pago</p>
+                    <p className="font text-xl ml-4 mt-1">PAGO</p>
                 </div>
             </div>
 
-            <div className="w-full left-0 top-20 h-full overflow-hidden">
-                <form className="bg-[#f2f2f2] text-[#A4A5A1] rounded-3xl mt-6 p-6 mx-auto w-[852px]">
+            <div className="absolute w-full left-0 top-16 h-screen overflow-hidden">
+                <form className="relative text-[#A4A5A1] z-30 bg-white mt-28 p-6 mx-auto shadow w-[860px] rounded-lg full-shadow">
                     {!session?.user && <>
                         <h1 className="text-3xl text-center mb-4 uppercase tracking-widest">
                             <span className="cursor-pointer hover:text-blue-500 hover:underline" onClick={() => { toggleRegistration(false) }}>Identifícate</span>
@@ -349,30 +353,35 @@ export const CheckOut = ({ session, catalogId }) => {
                     </>}
 
                     {(session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
-                        <h1 className="text-3xl text-center mb-4">
-                            <span className="cursor-pointer text-blue-500 underline">Fecha</span> /&nbsp;
-                            <span>Confirmación</span>
+                        <h1 className="text-xl text-center mb-4 text-slate-700">
+                            <span>SEPTIEMBRE, 2024</span>
                         </h1>
+                        {loadingCalendar ? <div className="w-full flex justify-center">
+                            <div className="w-[480px] h-80 pt-32"><Loader /></div>
+                        </div> :
+                            <div className="w-full flex justify-center">
+                                <div className="w-9 h-9 rounded-full border-2 border-slate-400 white hover:bg-slate-300 cursor-pointer mx-2 mt-4 hover:text-slate-700 p-0">
+                                    <MdNavigateBefore className="relative -left-0.5 -top-1" size="2.5rem" />
+                                </div>
+                                {checkOut.dias.map((d, indice) => {                                    
+                                    return (<div className={`w-[96px] space-y-2`} key={`_${d.numeroDia}`} onClick={() => setDiaSeleccionado(d)}>
+                                        {indice == 2
+                                            ? <div className="zeylada border-green-500 text-green-500 border-4 rounded-md text-center mr-2 text-md py-1 bg-green-200">{d.nombreDia}<p className="text-2xl font-bold">&nbsp;{d.numeroDia}</p></div>
+                                            : <div className="zeylada border-slate-400 text-slate-500 border-2 rounded-md text-center mr-2 text-md py-1 mt-[2px]">{d.nombreDia}<p className="text-2xl font-bold">&nbsp;{d.numeroDia}</p></div>}
+                                    </div>)
+                                })}
+                                <div className="w-9 h-9 rounded-full border-2 border-slate-400 white hover:bg-slate-300 cursor-pointer mt-4 hover:text-slate-700 p-0">
+                                    <MdNavigateNext className="relative -left-0.5 -top-1" size="2.5rem" />
+                                </div>
+                            </div>}
+
+                        <p className="text-center my-2">{diaSeleccionado?.horarios.length ? 'HORARIOS DISPONIBLES' : 'SIN HORARIOS DISPONIBLES'}</p>
                         <div className="w-full flex justify-center">
-                            <div className="w-[80px] h-20 border-2 border-slate-400 bg-transparent hover:bg-slate-300 cursor-pointer rounded-md mx-2 mt-10 hover:text-slate-700">
-                                <MdNavigateBefore className="mr-2 pt-4 " size="4rem" />
-                            </div>
-                            {!loadingCalendar && checkOut.dias.map((d, indice) => {
-                                return (<div className={`w-[420px] space-y-2`} key={`_${d.numeroDia}`}>
-                                    <div className={`border-slate-400 bg-slate-300 text-slate-600 border- border-2 rounded-md text-center mr-2 text-xl py-1`}>{d.nombreDia}<span className="text-3xl font-bold">&nbsp;{d.numeroDia}</span></div>
-                                    {d.horarios.map((h, indice) => <div onClick={() => handleSelectPlace(d.numeroDia, indice)}
-                                        key={`_${d.numeroDia}_${indice}`}
-                                        className={`${d.pasado ? 'border-slate-500 cursor-not-allowed text-slate-500' : h.ocupado ? 'border-red-400 bg-pink-300 text-[#EE64C5] cursor-not-allowed' : 'border-[#A4A5A1] hover:bg-white hover:text-slate-500 cursor-pointer'} text-md font-bold border-2 rounded-md text-center mr-2 py-1`}>
-                                        <span>{h.desde.hrs < 10 && '0'}{h.desde.hrs}</span><span className="relative text-xs -top-1 ml-0.5">{h.desde.min == 0 && '0'}{h.desde.min}</span>/
-                                        <span>{h.hasta.hrs < 10 && '0'}{h.hasta.hrs}</span><span className="relative text-xs -top-1 ml-0.5">{h.hasta.min == 0 && '0'}{h.hasta.min}</span></div>)}
-                                </div>)
-                            })}
-
-                            {loadingCalendar && <div className="w-[480px] h-80 pt-32"><Loader /></div>}
-
-                            <div className="w-[80px] h-20 border-2 border-slate-400 bg-transparent hover:bg-slate-300 cursor-pointer rounded-md mt-10 hover:text-slate-700">
-                                <MdNavigateNext className="mr-2 pt-4 " size="4rem" />
-                            </div>
+                            {diaSeleccionado != null && diaSeleccionado.horarios.map((h, indice) => <div onClick={() => handleSelectPlace(diaSeleccionado.numeroDia, indice)}
+                                key={`_${diaSeleccionado.numeroDia}_${indice}`}
+                                className={`${diaSeleccionado.pasado ? 'border-pink-300 cursor-not-allowed text-pink-500' : h.ocupado ? 'border-red-400 bg-pink-300 text-[#EE64C5] cursor-not-allowed' : 'border-brown-800 hover:bg-white hover:text-slate-500 cursor-pointer'} text-md font-bold border-2 rounded-md text-center mr-2 py-1 zeyada w-[96px]`}>
+                                <span>{h.desde.hrs < 10 && '0'}{h.desde.hrs}</span> : <span>{h.desde.min == 0 && '0'}{h.desde.min}</span>
+                            </div>)}
                         </div>
 
                         <p className={`text-xl mt-4 uppercase tracking-widest text-center ${checkOut.sesionesOk ? 'text-black' : ''}`}>
@@ -380,9 +389,9 @@ export const CheckOut = ({ session, catalogId }) => {
                         </p>
                         <div className="w-full flex px-20">
                             {checkOut?.sesiones?.map((s, index) =>
-                                <div key={`${s.numeroDia}_${s.indiceJornada}_${index}`}
+                                <div key={`zeylada ${s.numeroDia}_${s.indiceJornada}_${index}`}
                                     className={`${s.dia != 0 ? 'bg-white' : ''} border-2 border-slate-400 rounded-md py-1 px-4 m-2 w-1/3`}>
-                                    <p className={`uppercase tracking-widest font-bold ${s.dia != 0 ? 'text-[#EE64C5]' : ''}`}>Sesión {index + 1}</p>
+                                    <p className={`uppercase tracking-widest font-bold ${s.dia != 0 ? 'text-[#EE64C5]' : ''} `}>Sesión {index + 1}</p>
                                     <p className="text-bold">{s.dia != 0 ? dayjs(s.fecha).format("DD/MMM/YY HH:mm") : '--/--/-- --:--'}</p>
                                 </div>
                             )}
@@ -424,7 +433,7 @@ export const CheckOut = ({ session, catalogId }) => {
                             </div>
                             <div className="w-8/12 ml-4">
                                 <div className="w-full ml-6">
-                                    <p className="text-left text-xl uppercase tracking-widest text-[#EE64C5]">Cámara hiperbálica</p>                                    
+                                    <p className="text-left text-xl uppercase tracking-widest text-[#EE64C5]">Cámara hiperbálica</p>
                                 </div>
                                 <div className="w-full flex px-4">
                                     {checkOut?.sesiones?.map((s, index) =>
@@ -493,6 +502,28 @@ export const CheckOut = ({ session, catalogId }) => {
                         {confirmando && <Loader />}
                     </div>}
                 </form>
+
+                <div className="absolute top-0 w-full full-shadow">
+                    <div className="w-[920px] m-auto">
+                    <div className="absolute flex w-[920px] z-10 text-[#A4A5A1] mt-6 p-0 mx-auto shadow-md rounded-lg bg-white overflow-hidden">
+                        <img className="relative z-20 w-40 rounded-br-full" src="/tratamiento_piel.jpg" />
+                        <div className="w-80 ml-4 mt-2">
+                            <p className="font-bold text-xl">Tratamiento de piel</p>
+                            <p className="text-xs">Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. </p>
+                        </div>
+                        <div className="absolute rounded-bl-lg right-0 w-fit flex h-6 bg-green-200 px-4 border-l-">
+                            <div class="flex">
+                                <LiaMoneyBillSolid size="1.5rem" />
+                                <span className="text-sm ml-2 mt-0.5">$ 49.000</span>
+                            </div>
+                            <div class="flex ml-4">
+                                <GoClockFill size="1rem" className="mt-1" />
+                                <span className="text-sm ml-1 mt-0.5">4 sesiones x <b>30 mins</b></span>
+                            </div>
+                        </div>
+                    </div>
+                    </div>                    
+                </div>
             </div>
         </div>
     </>

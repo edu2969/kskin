@@ -23,6 +23,12 @@
   font-style: normal;
 }
 
+.zeyada-regular {
+  font-family: "Zeyada", cursive;
+  font-weight: 400;
+  font-style: normal;
+}
+
 body {
   font-family: "Alexandria", serif;  
   background-color: #D6D6D4;
@@ -229,5 +235,11 @@ label.icon {
   100% {
     opacity: 1;
   }
+}
+
+.full-shadow {
+  -moz-box-shadow: 0 0 3px #ccc;
+  -webkit-box-shadow: 0 0 3px #ccc;
+  box-shadow: 0 0 3px #ccc;
 }
 

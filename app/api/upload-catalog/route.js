@@ -41,7 +41,7 @@ export async function POST(req) {
               name: service.name.trim(),
               description: service.description?.trim(),
               price: service.price,
-              duration: service.duration,
+              durationMins: service.durationMins,
               specialtyId,
               reserveOnline: service.reserveOnline || true,
               priceVisibleOnMiniSite: service.priceVisibleOnMiniSite,
