@@ -10,6 +10,7 @@ import { MdNavigateBefore, MdNavigateNext, MdOutlinePriceCheck } from "react-ico
 import { useEffect, useRef, useState } from "react"
 import { signIn } from "next-auth/react"
 import { Loader } from "./Loader";
+import { CarrouselDias } from "./CarrouselDias"
 import numberFormat from "@/app/utils/currency"
 import dayjs from "dayjs";
 import 'dayjs/locale/es';
@@ -17,7 +18,19 @@ import 'dayjs/locale/es';
 dayjs.locale("es");
 
 export const CheckOut = ({ session, catalogId }) => {
+    const getPrimerDia = () => {
+        var hoy = dayjs();
+        if (hoy.day() == 6) {
+            hoy = dayjs(hoy).add(2, "days");
+        } else if (hoy.day() == 0) {
+            hoy = dayjs(hoy).add(1, "days");
+        }
+        return hoy.toDate();
+    }
+
     const [sessionId, setSessionId] = useState(new Date().getTime());
+    const [fecha, setFecha] = useState(getPrimerDia());
+    const [horarios, setHorarios] = useState([]);
 
     const [value, setValue] = useState({
         startDate: null,
@@ -124,71 +137,14 @@ export const CheckOut = ({ session, catalogId }) => {
         setRegistrationMode(value);
     }
 
-    const initCalendario = () => {
-        console.log("INIT CALENDARIO");
-        const mes = dayjs().format('MMMM');
-        const numeroMes = dayjs().get("month");
-        var diaSemana = dayjs().endOf("week").add(1, "day").startOf("date");
-        var dias = [];
-        var horarios = [{
-            ocupado: false,
-            desde: { hrs: 9, min: 30 },
-            hasta: { hrs: 10, min: 45 },
-        }, {
-            ocupado: false,
-            desde: { hrs: 11, min: 0 },
-            hasta: { hrs: 12, min: 15 },
-        }, {
-            ocupado: true,
-            desde: { hrs: 15, min: 30 },
-            hasta: { hrs: 16, min: 45 },
-        }, {
-            ocupado: false,
-            desde: { hrs: 17, min: 0 },
-            hasta: { hrs: 18, min: 45 },
-        }]
-        for (var i = 0; i < 5; i++) {
-            var dia = {
-                numeroDia: diaSemana.date(),
-                horarios: horarios.map(h => {
-                    return {
-                        ...h,
-                        fecha: diaSemana.hour(h.desde.hrs).minute(h.desde.min).toDate(),
-                        pasado: diaSemana.hour(h.desde.hrs).minute(h.desde.min).isBefore(new Date()),
-                    }
-                }),
-                nombreDia: diaSemana.format("dd"),
-            };
-            if (diaSemana.isBefore(new Date())) {
-                dia.pasado = true;
-            }
-            dias.push(dia)
-            diaSemana = diaSemana.add(1, "day");
-        }
-        setCheckOut({
-            numeroMes,
-            mes,
-            dias,
-            sesiones: Array.from(Array(3).keys()).map(i => {
-                return {
-                    dia: 0,
-                    indiceJornada: -1,
-                    fecha: new Date(),
-                }
-            }),
-        })
-        setLoadingCalendar(false);
-    }
-
-    const handleSelectPlace = async (numeroDia, indiceHorario) => {
-        console.log("SELECT", numeroDia, indiceHorario);
+    const handleSelectPlace = async (indiceHorario) => {
+        var numeroDia = dayjs(fecha).date();
         var cal = JSON.parse(JSON.stringify(checkOut));
         const indice = cal.sesiones.findIndex(s => s.dia == 0);
         cal.sesiones[indice].dia = numeroDia;
         cal.sesiones[indice].indiceJornada = indiceHorario;
-        const horario = cal.dias.find(d => d.numeroDia == numeroDia).horarios[indiceHorario];
-        console.log("HORARIO", horario, cal.dias.find(d => d.numeroDia == numeroDia));
-        cal.sesiones[indice].fecha = horario.fecha;
+        const horario = horarios[indiceHorario];
+        cal.sesiones[indice].fecha = dayjs(fecha).toDate();
         if (indice == cal.sesiones.length - 1) {
             cal.sesionesOk = true;
         }
@@ -255,6 +211,75 @@ export const CheckOut = ({ session, catalogId }) => {
         console.log("EVENT", event.target.checked)
         setAbono(event.target.checked);
     };
+
+    var DEFAULT_HORARIO = [{
+        ocupado: false,
+        desde: { hrs: 9, min: 30 },
+        hasta: { hrs: 10, min: 45 },
+    }, {
+        ocupado: false,
+        desde: { hrs: 11, min: 0 },
+        hasta: { hrs: 12, min: 15 },
+    }, {
+        ocupado: true,
+        desde: { hrs: 15, min: 30 },
+        hasta: { hrs: 16, min: 45 },
+    }, {
+        ocupado: false,
+        desde: { hrs: 17, min: 0 },
+        hasta: { hrs: 18, min: 45 },
+    }]
+
+    const cargarHorarios = () => {
+        setHorarios(DEFAULT_HORARIO.map(h => {
+                return {
+                    ...h,
+                    fecha: dayjs(fecha).hour(h.desde.hrs).minute(h.desde.min).toDate(),
+                    pasado: dayjs(fecha).hour(h.desde.hrs).minute(h.desde.min).isBefore(fecha),
+                }
+        }));
+    }
+
+    const initCalendario = () => {
+        console.log("INIT CALENDARIO");
+        const mes = dayjs().format('MMMM');
+        const numeroMes = dayjs().get("month");
+        var diaSemana = dayjs().endOf("week").add(1, "day").startOf("date");
+        var dias = [];
+        for (var i = 0; i < 5; i++) {
+            var dia = {
+                numeroDia: diaSemana.date(),
+                horarios: horarios.map(h => {
+                    return {
+                        ...h,
+                        fecha: diaSemana.hour(h.desde.hrs).minute(h.desde.min).toDate(),
+                        pasado: diaSemana.hour(h.desde.hrs).minute(h.desde.min).isBefore(new Date()),
+                    }
+                }),
+                nombreDia: diaSemana.format("dd"),
+            };
+            if (diaSemana.isBefore(new Date())) {
+                dia.pasado = true;
+            }
+            dias.push(dia)
+            diaSemana = diaSemana.add(1, "day");
+        }
+        setCheckOut({
+            numeroMes,
+            mes,
+            dias,
+            sesiones: Array.from(Array(3).keys()).map(i => {
+                return {
+                    dia: 0,
+                    indiceJornada: -1,
+                    fecha: new Date(),
+                }
+            }),
+        });
+        setLoadingCalendar(false);
+        cargarHorarios();
+        console.log("Fecha", fecha);
+    }
 
     return <>
         <div className="w-full bg-slate-100 overflow-x-hidden pb-24 h-screen">
@@ -354,32 +379,17 @@ export const CheckOut = ({ session, catalogId }) => {
 
                     {(session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
                         <h1 className="text-xl text-center mb-4 text-slate-700">
-                            <span>SEPTIEMBRE, 2024</span>
+                            <span>{dayjs(fecha).format("MMMM, YYYY").toUpperCase()}</span>
                         </h1>
-                        {loadingCalendar ? <div className="w-full flex justify-center">
+                        {loadingCalendar && checkOut != undefined ? <div className="w-full flex justify-center">
                             <div className="w-[480px] h-80 pt-32"><Loader /></div>
-                        </div> :
-                            <div className="w-full flex justify-center">
-                                <div className="w-9 h-9 rounded-full border-2 border-slate-400 white hover:bg-slate-300 cursor-pointer mx-2 mt-4 hover:text-slate-700 p-0">
-                                    <MdNavigateBefore className="relative -left-0.5 -top-1" size="2.5rem" />
-                                </div>
-                                {checkOut.dias.map((d, indice) => {                                    
-                                    return (<div className={`w-[96px] space-y-2`} key={`_${d.numeroDia}`} onClick={() => setDiaSeleccionado(d)}>
-                                        {indice == 2
-                                            ? <div className="zeylada border-green-500 text-green-500 border-4 rounded-md text-center mr-2 text-md py-1 bg-green-200">{d.nombreDia}<p className="text-2xl font-bold">&nbsp;{d.numeroDia}</p></div>
-                                            : <div className="zeylada border-slate-400 text-slate-500 border-2 rounded-md text-center mr-2 text-md py-1 mt-[2px]">{d.nombreDia}<p className="text-2xl font-bold">&nbsp;{d.numeroDia}</p></div>}
-                                    </div>)
-                                })}
-                                <div className="w-9 h-9 rounded-full border-2 border-slate-400 white hover:bg-slate-300 cursor-pointer mt-4 hover:text-slate-700 p-0">
-                                    <MdNavigateNext className="relative -left-0.5 -top-1" size="2.5rem" />
-                                </div>
-                            </div>}
+                        </div> : <CarrouselDias fecha={fecha} setFecha={setFecha} cargarHorarios={cargarHorarios}/>}
 
-                        <p className="text-center my-2">{diaSeleccionado?.horarios.length ? 'HORARIOS DISPONIBLES' : 'SIN HORARIOS DISPONIBLES'}</p>
+                        <p className="text-center my-2">{horarios.length ? 'HORARIOS DISPONIBLES' : 'SIN HORARIOS DISPONIBLES'}</p>
                         <div className="w-full flex justify-center">
-                            {diaSeleccionado != null && diaSeleccionado.horarios.map((h, indice) => <div onClick={() => handleSelectPlace(diaSeleccionado.numeroDia, indice)}
-                                key={`_${diaSeleccionado.numeroDia}_${indice}`}
-                                className={`${diaSeleccionado.pasado ? 'border-pink-300 cursor-not-allowed text-pink-500' : h.ocupado ? 'border-red-400 bg-pink-300 text-[#EE64C5] cursor-not-allowed' : 'border-brown-800 hover:bg-white hover:text-slate-500 cursor-pointer'} text-md font-bold border-2 rounded-md text-center mr-2 py-1 zeyada w-[96px]`}>
+                            {horarios.length > 0 && horarios.map((h, indice) => <div onClick={() => handleSelectPlace(indice)}
+                                key={`_${h.numeroDia}_${indice}`}
+                                className={`border-brown-800 hover:bg-white hover:text-slate-500 cursor-pointer text-md font-bold border-2 rounded-md text-center mr-2 py-1 zeyada w-[96px]`}>
                                 <span>{h.desde.hrs < 10 && '0'}{h.desde.hrs}</span> : <span>{h.desde.min == 0 && '0'}{h.desde.min}</span>
                             </div>)}
                         </div>
@@ -392,7 +402,7 @@ export const CheckOut = ({ session, catalogId }) => {
                                 <div key={`zeylada ${s.numeroDia}_${s.indiceJornada}_${index}`}
                                     className={`${s.dia != 0 ? 'bg-white' : ''} border-2 border-slate-400 rounded-md py-1 px-4 m-2 w-1/3`}>
                                     <p className={`uppercase tracking-widest font-bold ${s.dia != 0 ? 'text-[#EE64C5]' : ''} `}>Sesión {index + 1}</p>
-                                    <p className="text-bold">{s.dia != 0 ? dayjs(s.fecha).format("DD/MMM/YY HH:mm") : '--/--/-- --:--'}</p>
+                                    <p className="uppercase text-bold">{s.dia != 0 ? dayjs(s.fecha).format("DD/MMM/YY HH:mm") : '--/--/-- --:--'}</p>
                                 </div>
                             )}
                         </div>
@@ -512,11 +522,11 @@ export const CheckOut = ({ session, catalogId }) => {
                             <p className="text-xs">Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. </p>
                         </div>
                         <div className="absolute rounded-bl-lg right-0 w-fit flex h-6 bg-green-200 px-4 border-l-">
-                            <div class="flex">
+                            <div className="flex">
                                 <LiaMoneyBillSolid size="1.5rem" />
                                 <span className="text-sm ml-2 mt-0.5">$ 49.000</span>
                             </div>
-                            <div class="flex ml-4">
+                            <div className="flex ml-4">
                                 <GoClockFill size="1rem" className="mt-1" />
                                 <span className="text-sm ml-1 mt-0.5">4 sesiones x <b>30 mins</b></span>
                             </div>

@@ -243,3 +243,15 @@ label.icon {
   box-shadow: 0 0 3px #ccc;
 }
 
+.dias-container {
+  display: flex;
+  transition: transform 0.3s ease-in-out;
+}
+
+.slide-left {
+  transform: translateX(-100%);
+}
+
+.slide-right {
+  transform: translateX(100%);
+}
