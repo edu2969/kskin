@@ -1,13 +1,21 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
-import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
+import nodemailer from 'nodemailer';
+import Catalog from "@/models/Catalog";
+import Schedule from "@/models/Schedule";
+import Specialist from "@/models/Specialist";
+import Order from "@/models/Order";
+import Payment from "@/models/Payment";
+import { ORDER_STATUS } from "@/lib/constants";
 
 export async function POST(req) {
   try {
     await connectMongoDB();
     const body = await req.json();
-    console.log("POST transactions", body);
+    
+    const catalog = await Catalog.findOne({ id: body.catalogId });
+    var amount = catalog.price * (body.esAbonado ? .25 : 1);
 
     const endPoint = '/rswebpaytransaction/api/webpay/v1.2/transactions';
     const tbkCall = await fetch(`${process.env.TBK_INT_HOST}${endPoint}`, {
@@ -20,15 +28,79 @@ export async function POST(req) {
       body: JSON.stringify({
         'buy_order': `MSJ_PLUS01_${body.sessionId}`,
         'session_id': `SDI_${body.sessionId}`,
-        'amount': 49990,
-        'return_url': `${process.env.BASE_URL}/checkout/${body.productId}`
+        'amount': amount,
+        'return_url': `${process.env.BASE_URL}/checkout/${body.catalogId}`
       })
     });
 
     const resp = await tbkCall.json();
 
-    if (resp.cvi === 'TSY') {
-      // Configurar OAuth2 client
+    const specialists = await Specialist.find({ active: true }).lean();
+    const specialistSchedules = await Schedule.find({
+      specialistId: { $in: specialists.map(s => s._id) },
+      startDate: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+    }).lean();
+
+    const specialistLoad = specialists.map(specialist => {
+      const schedules = specialistSchedules.filter(schedule => schedule.specialistId.toString() === specialist._id.toString());
+      const totalMinutes = schedules.reduce((acc, schedule) => acc + schedule.duration, 0);
+      return { specialistId: specialist._id, totalMinutes };
+    });
+
+    specialistLoad.sort((a, b) => a.totalMinutes - b.totalMinutes);
+
+    const selectedSpecialists = specialistLoad.slice(0, catalog.specialistQty).map(s => s.specialistId);
+    if (resp.vci == 'TSY') {
+      console.log("RESP TSY");
+      for (let i = 0; i < body.sessions.length; i++) {
+        const sesion = body.sesiones[i];
+        const reserva = {
+          specialistsId: selectedSpecialists,
+          clientId: body.clientId,
+          catalogId: catalog._id,
+          startDate: sesion.startDate,
+          duration: catalog.durationMins + (catalog.cleanUpMins ?? 0)          
+        };
+        console.log("CREANDO RESERVA", reserva);
+        await Schedule.create(reserva);
+      }
+
+      const order = {
+        catalogId: catalog._id,
+        amount: amount,
+        remainingBalance: catalog.price - amount,
+        date: new Date(),
+        userId: body.clientId,
+        status: ORDER_STATUS.created,
+        sessions: body.sessions.map(s => ({ 
+          from: s.startDate, 
+          to: new Date(s.startDate.getTime() + catalog.durationMins * 60 * 1000), 
+          assist: false }))
+      };
+      console.log("CREANDO ORDERN", order);
+      await Order.create(order);
+
+      const payment = {
+        orderId: order._id,
+        buyOrder: resp.buy_order,
+        sessionId: resp.session_id,
+        amount: resp.amount,
+        status: resp.status,
+        authorizationCode: resp.authorization_code,
+        paymentTypeCode: resp.payment_type_code,
+        responseCode: resp.response_code,
+        installmentsNumber: resp.installments_number,
+        installmentsAmount: resp.installments_amount,
+        accountingDate: resp.accounting_date,
+        transactionDate: resp.transaction_date,
+        vci: resp.vci,
+        urlRedirection: resp.url
+      };
+      console.log("CREANDO PAYMENT", payment);
+      await Payment.create(payment);
+      
+
+
       const oAuth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CALENDAR_API_CLIENTID,
         process.env.GOOGLE_CALENDAR_API_KEY
@@ -83,7 +155,7 @@ export async function POST(req) {
           <p>Detalles del evento:</p>
           <p>Resumen: Reserva de Hora</p>
           <p>Descripción: Reserva de hora confirmada.</p>
-          <p>Ubicación: 123 Main St, City, Country</p>
+          <p>Ubicación: Cocharne 1298, oficina 102, 1er piso.</p>
           <p>Fecha: ${new Date().toISOString()}</p>
         `,
       });
@@ -91,6 +163,7 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true, token: resp.token, url: resp.url });
   } catch (error) {
-    return NextResponse.status(500).json({ message: "Error", error });
+    console.log("ERROR", error);
+    return NextResponse.json({ status: 500, message: "Error", error });
   }
 }

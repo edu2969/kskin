@@ -1,5 +1,5 @@
 import mongoose, { Schema, models } from "mongoose";
-import ORDER_STATUS from "@/lib/constants"
+import { ORDER_STATUS } from "@/lib/constants"
 
 const sessionSchema = new Schema({
     from: {
@@ -14,7 +14,7 @@ const sessionSchema = new Schema({
         type: Boolean,
         required: true,
     }
-})
+});
 
 const orderSchema = new Schema(
     {
@@ -47,7 +47,7 @@ const orderSchema = new Schema(
                 ORDER_STATUS.notAttending,
                 ORDER_STATUS.error,
             ],
-            required: true,
+            default: ORDER_STATUS.created,
         },
         sessions: [sessionSchema]
     },

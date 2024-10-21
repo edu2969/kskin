@@ -105,7 +105,7 @@ export const CatalogList = ({ session }) => {
                         </div>
                     )}
                     <div className="relative w-1/2 -right-80 -bottom-12">
-                        <Image src="/hoja_03.png" width={250} height={300} alt="Decoración" />
+                        <img src="/hoja_03.png" width="250" alt="Decoración" />
                     </div>
                 </div>
 

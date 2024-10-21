@@ -2,7 +2,7 @@ import mongoose, { Schema, models } from "mongoose";
 
 const scheduleSchema = new Schema({
     specialistId: {
-        type: mongoose.Types.ObjectId,
+        type: [mongoose.Types.ObjectId],
         ref: "Specialist",
     },
     clientId: {
@@ -22,15 +22,9 @@ const scheduleSchema = new Schema({
     allDay: {
         type: Boolean,
     },
-    fromDate: {
-        type: Date,
-    },
-    toDate: {
-        type: Date,
-    },
-    noAvailables: {
-        type: [Number],
-    },
+    noAvailable: {
+        type: Boolean,
+    }
 },
     { timestamps: true }
 );

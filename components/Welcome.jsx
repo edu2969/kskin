@@ -8,7 +8,7 @@ export default function Welcome() {
             <div className="w-1/2 px-24">
               <div>                
                 <div className="ml-32 mt-6 w-[320px]">
-                  <img width={180} height={60} className="mr-2" src="/simple-logo.png" alt="logo KSkin" />
+                  <img width="180" className="mr-2" src="/simple-logo.png" alt="logo KSkin" />
                   <div className="flex text-3xl ml-5 text-[#EE64C5] space-x-[14px]">
                     <span>K</span>
                     <span>S</span>
@@ -21,13 +21,13 @@ export default function Welcome() {
               </div>
             </div>
             <div className="relative left-20">
-              <Image src="/skin_care.png" width={300} height={300} />
+              <img src="/skin_care.png" width="300"/>
             </div>
             <div className="absolute top-32 -left-14">
-              <Image src="/hoja_01.png" width={250} height={200}></Image>
+              <img src="/hoja_01.png" width="250"/>
             </div>
             <div className="absolute -right-28 -top-24">
-              <Image src="/hoja_02.png" width={250} height={200}></Image>
+              <img src="/hoja_02.png" width="250"/>
             </div>
           </div>
         </div>

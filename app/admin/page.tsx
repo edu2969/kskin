@@ -1,14 +1,14 @@
-import { ImportCatalog } from "@/components/AdminPanel/ImportCatalog"
 import { authOptions } from "../api/auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
 import { Navigation } from "@/components/Navigation";
+import { LoginForm } from "@/components/AdminPanel/LoginForm"
 
-export default async function Agenda({ params } : { params: { id: string } }) {
+export default async function Admin({ params } : { params: { id: string } }) {
     const session = await getServerSession(authOptions);
     return (        
         <main>
             <Navigation session={session}/>
-            <ImportCatalog session={session}></ImportCatalog>
+            <LoginForm session={session}/>
         </main>        
     );
 }

@@ -4,6 +4,7 @@ const catalogSchema = new mongoose.Schema({
   id: { type: String, required: true },
   name: { type: String, required: true },
   description: { type: String },
+  imgUrl: { type: String },
   price: { type: Number, required: true },
   durationMins: { type: Number, required: true },
   cleanUpMins: { type: Number, required: true },
@@ -16,6 +17,7 @@ const catalogSchema = new mongoose.Schema({
   sessionCount: { type: Number },
   groupCapacity: { type: Number },
   homeService: { type: Boolean, required: true },
+  specialistQty: { type: Number },
 });
 
 const Catalog = mongoose.models.Catalog || mongoose.model('Catalog', catalogSchema);

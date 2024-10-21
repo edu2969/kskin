@@ -6,6 +6,7 @@ import { FaEye, FaEyeSlash, FaMeta } from "react-icons/fa6"
 import { FaCheckCircle } from "react-icons/fa"
 import { GoClockFill } from "react-icons/go";
 import { LiaMoneyBillSolid } from "react-icons/lia";
+import { BsBalloonHeartFill, BsCalendarHeartFill } from "react-icons/bs";
 import { MdNavigateBefore, MdNavigateNext, MdOutlinePriceCheck } from "react-icons/md"
 import { useEffect, useRef, useState } from "react"
 import { signIn } from "next-auth/react"
@@ -13,6 +14,7 @@ import { Loader } from "./Loader";
 import { CarrouselDias } from "./CarrouselDias"
 import numberFormat from "@/app/utils/currency"
 import dayjs from "dayjs";
+import axios from 'axios';
 import 'dayjs/locale/es';
 
 dayjs.locale("es");
@@ -32,26 +34,11 @@ export const CheckOut = ({ session, catalogId }) => {
     const [fecha, setFecha] = useState(getPrimerDia());
     const [horarios, setHorarios] = useState([]);
 
-    const [value, setValue] = useState({
-        startDate: null,
-        endDate: null
-    });
-
-    const handleValueChange = (newValue) => {
-        console.log("newValue:", newValue);
-        setValue(newValue);
-    }
-
-    const router = useRouter();
     const params = useSearchParams();
-    const onError = (errors, e) => console.log(errors, e)
-    const [menuActive, setMenuActive] = useState(false)
-    const [formActive, setFormActive] = useState(true)
     const [registrationMode, setRegistrationMode] = useState(false);
     const [passwordVisible, setPasswordVisible] = useState(false);
     const [repasswordVisible, setRepasswordVisible] = useState(false);
     const [loadingCalendar, setLoadingCalendar] = useState(true);
-    const [abono, setAbono] = useState(false);
     const {
         register,
         formState: {
@@ -59,10 +46,12 @@ export const CheckOut = ({ session, catalogId }) => {
         },
         handleSubmit,
     } = useForm();
-    const [error, setError] = useState("");
     const [login, setLogin] = useState(false);
     const [confirmando, setConfirmando] = useState(false);
-    const [diaSeleccionado, setDiaSeleccionado] = useState(null);
+    const [catalog, setCatalog] = useState({});
+    const [giftCard, setGiftCard] = useState(false);
+    const [reserveLater, setReserveLater] = useState(false);
+    const [esAbonado, setEsAbonado] = useState(false);
 
     const [checkOut, setCheckOut] = useState({
         mes: '',
@@ -70,7 +59,6 @@ export const CheckOut = ({ session, catalogId }) => {
     });
 
     const identificationHandler = async (data) => {
-        setLogin(true);
         if (registrationMode) {
             try {
                 const resUserExists = await fetch("/api/userExists", {
@@ -107,12 +95,10 @@ export const CheckOut = ({ session, catalogId }) => {
                     if (signInRes?.error) {
                         setError("Invalid Credentials");
                         return;
-                    }
-                    setLoadingCalendar(true);
+                    }                    
                 } else {
                     console.log("User registration failed.");
                 }
-                setLogin(false);
             } catch (error) {
                 console.log("Error during registration: ", error, {
                     email: data.email,
@@ -138,22 +124,22 @@ export const CheckOut = ({ session, catalogId }) => {
     }
 
     const handleSelectPlace = async (indiceHorario) => {
-        var numeroDia = dayjs(fecha).date();
-        var cal = JSON.parse(JSON.stringify(checkOut));
-        const indice = cal.sesiones.findIndex(s => s.dia == 0);
-        cal.sesiones[indice].dia = numeroDia;
-        cal.sesiones[indice].indiceJornada = indiceHorario;
-        const horario = horarios[indiceHorario];
-        cal.sesiones[indice].fecha = dayjs(fecha).toDate();
-        if (indice == cal.sesiones.length - 1) {
-            cal.sesionesOk = true;
-        }
-        console.log("NC!->", cal);
-        setCheckOut(cal);
+        const indice = checkOut.sesiones.findIndex(s => s == null);
+        var sesiones = checkOut.sesiones;
+        sesiones[indice] = dayjs(fecha).toDate();
+        console.log("CHECKOUY", {
+            ...checkOut,
+            sesiones,
+            sesionesOk: indice == checkOut.sesiones.length - 1,
+        });
+        setCheckOut({
+            ...checkOut,
+            sesiones,
+            sesionesOk: indice == checkOut.sesiones.length - 1,
+        });
     }
 
     const handleDateConfirmed = async () => {
-        console.log("ODA", catalogId, "..")
         const resp = await fetch('/api/checkout', {
             method: "POST",
             headers: {
@@ -163,18 +149,20 @@ export const CheckOut = ({ session, catalogId }) => {
                 sessionId,
                 catalogId: catalogId,
                 sessions: checkOut.sesiones,
+                esAbonado: esAbonado,
             })
         })
         setConfirmando(true);
         const r = await resp.json();
-        console.log("RESP", r);
-        window.location = `${r.url}?token_ws=${r.token}`
+        if(r.url && r.token) {
+            window.location = `${r.url}?token_ws=${r.token}`
+        } else alert("ERROR", r);        
     }
 
     const checkPayment = async () => {
         const token_ws = params.get('token_ws');
         if (token_ws != null && token_ws != undefined) {
-            const nc = JSON.parse(JSON.stringify(checkOut));
+            const nc = {...checkOut};
             nc.catalogId = catalogId;
             nc.sesionesOk = true;
             nc.sesionesConfirmadas = true;
@@ -185,7 +173,8 @@ export const CheckOut = ({ session, catalogId }) => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    token: token_ws
+                    token: token_ws,
+                    catalogId: catalogId
                 })
             });
             const respVerify = await verification.json();
@@ -196,7 +185,23 @@ export const CheckOut = ({ session, catalogId }) => {
                 nc.paymentError = true;
             }
             setCheckOut(nc);
-        } else initCalendario();
+        } else getCatalogSelected();
+    }
+
+    const getCatalogSelected = async () => {
+        try {
+            const response = await fetch(`/api/catalog/${catalogId}`);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            var catalogo = await response.json();
+            setCatalog(catalogo.catalog);
+            initCalendario(Array.from(Array(catalogo.catalog.sessionCount == 0 ? 1 : catalogo.catalog.sessionCount).keys()).map(i => {
+                return null
+            }));
+        } catch (error) {
+            console.error('Error fetching catalog:', error);
+        }
     }
 
     const initData = useRef(false);
@@ -209,83 +214,85 @@ export const CheckOut = ({ session, catalogId }) => {
 
     const handleCheckboxChange = (event) => {
         console.log("EVENT", event.target.checked)
-        setAbono(event.target.checked);
-    };
+        setEsAbonado(event.target.checked);
+    };   
 
-    var DEFAULT_HORARIO = [{
-        ocupado: false,
-        desde: { hrs: 9, min: 30 },
-        hasta: { hrs: 10, min: 45 },
-    }, {
-        ocupado: false,
-        desde: { hrs: 11, min: 0 },
-        hasta: { hrs: 12, min: 15 },
-    }, {
-        ocupado: true,
-        desde: { hrs: 15, min: 30 },
-        hasta: { hrs: 16, min: 45 },
-    }, {
-        ocupado: false,
-        desde: { hrs: 17, min: 0 },
-        hasta: { hrs: 18, min: 45 },
-    }]
-
-    const cargarHorarios = () => {
-        setHorarios(DEFAULT_HORARIO.map(h => {
-                return {
-                    ...h,
-                    fecha: dayjs(fecha).hour(h.desde.hrs).minute(h.desde.min).toDate(),
-                    pasado: dayjs(fecha).hour(h.desde.hrs).minute(h.desde.min).isBefore(fecha),
-                }
-        }));
-    }
-
-    const initCalendario = () => {
+    const initCalendario = async (sesiones) => {
         console.log("INIT CALENDARIO");
         const mes = dayjs().format('MMMM');
         const numeroMes = dayjs().get("month");
         var diaSemana = dayjs().endOf("week").add(1, "day").startOf("date");
-        var dias = [];
-        for (var i = 0; i < 5; i++) {
-            var dia = {
-                numeroDia: diaSemana.date(),
-                horarios: horarios.map(h => {
-                    return {
-                        ...h,
-                        fecha: diaSemana.hour(h.desde.hrs).minute(h.desde.min).toDate(),
-                        pasado: diaSemana.hour(h.desde.hrs).minute(h.desde.min).isBefore(new Date()),
-                    }
-                }),
-                nombreDia: diaSemana.format("dd"),
-            };
-            if (diaSemana.isBefore(new Date())) {
-                dia.pasado = true;
+
+        try {
+            const response = await fetch(`/api/schedule?date=${dayjs().format('YYYY-MM-DD')}&catalogId=${catalogId}`);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
-            dias.push(dia)
-            diaSemana = diaSemana.add(1, "day");
-        }
-        setCheckOut({
-            numeroMes,
-            mes,
-            dias,
-            sesiones: Array.from(Array(3).keys()).map(i => {
-                return {
-                    dia: 0,
-                    indiceJornada: -1,
-                    fecha: new Date(),
+            const availableSlots = await response.json();
+
+            var dias = [];
+            for (var i = 0; i < 5; i++) {
+                var dia = {
+                    numeroDia: diaSemana.date(),
+                    horarios: availableSlots.map(slot => {
+                        return {
+                            ocupado: false,
+                            desde: { hrs: dayjs(slot).hour(), min: dayjs(slot).minute() },
+                            hasta: { hrs: dayjs(slot).add(catalog.durationMins, 'minute').hour(), min: dayjs(slot).add(catalog.durationMins, 'minute').minute() },
+                            fecha: dayjs(slot).toDate(),
+                            pasado: dayjs(slot).isBefore(new Date()),
+                        }
+                    }),
+                    nombreDia: diaSemana.format("dd"),
+                };
+                if (diaSemana.isBefore(new Date())) {
+                    dia.pasado = true;
                 }
-            }),
-        });
-        setLoadingCalendar(false);
-        cargarHorarios();
-        console.log("Fecha", fecha);
+                dias.push(dia)
+                diaSemana = diaSemana.add(1, "day");
+            }
+            setCheckOut({
+                ...checkOut,
+                numeroMes,
+                mes,
+                dias,
+                sesiones
+            });
+            cargarHorarios();
+            setLoadingCalendar(false);
+            console.log("CHECKOUT", checkOut);
+        } catch (error) {
+            console.error('Error fetching available slots:', error);
+        }
+    }
+
+    const cargarHorarios = () => {
+        console.log("CARGAR HORARIOS", fecha);
+        setLoadingCalendar(true);
+        axios.get(`/api/schedule?date=${dayjs(fecha).format('YYYY-MM-DD')}&catalogId=${catalogId}`)
+            .then((response) => {
+                console.log("RESPONSE", response.data);
+                setHorarios(response.data.map(slot => {
+                    return {
+                        ocupado: false,
+                        desde: { hrs: dayjs(slot).hour(), min: dayjs(slot).minute() },
+                        hasta: { hrs: dayjs(slot).add(catalog.durationMins, 'minute').hour(), min: dayjs(slot).add(catalog.durationMins, 'minute').minute() },
+                        fecha: dayjs(slot).toDate(),
+                        pasado: dayjs(slot).isBefore(new Date()),
+                    }
+                }));
+                setLoadingCalendar(false);
+            })
+            .catch((error) => {
+                console.error('Error fetching available slots:', error);
+            });
     }
 
     return <>
         <div className="w-full bg-slate-100 overflow-x-hidden pb-24 h-screen">
 
             <div className="flex w-full pt-8 pb-4 justify-center">
-                <div className={`flex w-1/4 justify-center h-10`}>
+                <div className={`flex w-1/4 justify-center`}>
                     <div className={`${session?.user ? 'text-green-500' : 'text-[#b0a3ac]'}`}>
                         {session?.user ? <FaCheckCircle className="mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-pink-300 h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">1</p>}
                     </div>
@@ -295,13 +302,13 @@ export const CheckOut = ({ session, catalogId }) => {
                 </div>
                 <div className={`flex w-1/4 justify-center h-10 ${checkOut?.sesionesOk ? 'text-green-500' : session?.user ? 'text-[#EE64C5]' : 'text-[#b0a3ac]'}`}>
                     <div>
-                        {checkOut?.sesionesOk ? <FaCheckCircle className="text-lime-500 mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-white h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">2</p>}
+                        {checkOut?.sesionesOk ? <FaCheckCircle className="text-green-500 mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-white h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">2</p>}
                     </div>
                     <p className="font text-lg ml-4 mt-1">FECHA / CONFIRMACIÓN</p>
                 </div>
                 <div className={`flex w-1/4 justify-center h-10 ${checkOut?.productoConfirmado ? 'text-green-500' : 'text-[#b0a3ac]'}`}>
                     <div>
-                        {checkOut?.productoConfirmado ? <FaCheckCircle className="text-lime-500 mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-pink-300 h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">3</p>}
+                        {checkOut?.productoConfirmado ? <FaCheckCircle className="text-green-500 mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-pink-300 h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">3</p>}
                     </div>
                     <p className="font text-xl ml-4 mt-1">PAGO</p>
                 </div>
@@ -327,7 +334,7 @@ export const CheckOut = ({ session, catalogId }) => {
                                     })}
                                     id="email"
                                     className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-white bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
-                                <label htmlFor="email" className="absolute text-sm text-gray-300 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#f2f2f2] dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-[#A4A5A1] peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
+                                <label htmlFor="email" className="absolute text-sm text-gray-400 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-gray-400 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
                                     e-mail</label>
                             </div>
                             {errors.email && <div className="text-red-400 w-[260px] text-sm mx-auto my-0 pb-2 pl-2"><span>Ingrese un email válido</span></div>}
@@ -336,7 +343,7 @@ export const CheckOut = ({ session, catalogId }) => {
                                     {...register('password', { required: true })}
                                     id="password"
                                     className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-white bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
-                                <label htmlFor="password" className="absolute text-sm text-gray-300 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#f2f2f2] dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-[#A4A5A1] peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
+                                <label htmlFor="password" className="absolute text-sm text-gray-400 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-[#A4A5A1] peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
                                     password</label>
                                 <div className="absolute right-3 top-2.5 cursor-pointer" onClick={() => { setPasswordVisible(!passwordVisible) }}>
                                     {passwordVisible ? <FaEye size="1.5rem" /> : <FaEyeSlash size="1.5rem" />}
@@ -374,97 +381,146 @@ export const CheckOut = ({ session, catalogId }) => {
                                 </button>
                             </div>
                         </div> :
-                            <Loader />}
+                            <Loader />}                        
                     </>}
 
-                    {(session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
+                    {(!reserveLater && !giftCard && session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
                         <h1 className="text-xl text-center mb-4 text-slate-700">
                             <span>{dayjs(fecha).format("MMMM, YYYY").toUpperCase()}</span>
                         </h1>
-                        {loadingCalendar && checkOut != undefined ? <div className="w-full flex justify-center">
-                            <div className="w-[480px] h-80 pt-32"><Loader /></div>
-                        </div> : <CarrouselDias fecha={fecha} setFecha={setFecha} cargarHorarios={cargarHorarios}/>}
+                        <CarrouselDias fecha={fecha} setFecha={setFecha} cargarHorarios={cargarHorarios}/>
 
                         <p className="text-center my-2">{horarios.length ? 'HORARIOS DISPONIBLES' : 'SIN HORARIOS DISPONIBLES'}</p>
-                        <div className="w-full flex justify-center">
+                        {loadingCalendar ? <div className="w-full flex justify-center">
+                            <div className="w-[480px] h-9"><Loader /></div>
+                        </div>
+                        : <div className="w-full flex flex-wrap justify-center">
                             {horarios.length > 0 && horarios.map((h, indice) => <div onClick={() => handleSelectPlace(indice)}
                                 key={`_${h.numeroDia}_${indice}`}
-                                className={`border-brown-800 hover:bg-white hover:text-slate-500 cursor-pointer text-md font-bold border-2 rounded-md text-center mr-2 py-1 zeyada w-[96px]`}>
+                                className={`border-brown-800 hover:bg-white hover:text-slate-500 cursor-pointer text-md font-bold border-2 rounded-md text-center mr-2 py-1 mb-2 zeyada w-[96px]`}>
                                 <span>{h.desde.hrs < 10 && '0'}{h.desde.hrs}</span> : <span>{h.desde.min == 0 && '0'}{h.desde.min}</span>
                             </div>)}
-                        </div>
+                        </div>}
 
                         <p className={`text-xl mt-4 uppercase tracking-widest text-center ${checkOut.sesionesOk ? 'text-black' : ''}`}>
                             {checkOut.sesionesOk ? `Sesiones listas. Presiona continuar` : `Seleccione sus ${checkOut?.sesiones?.length || ''} sesiones`}
                         </p>
-                        <div className="w-full flex px-20">
-                            {checkOut?.sesiones?.map((s, index) =>
-                                <div key={`zeylada ${s.numeroDia}_${s.indiceJornada}_${index}`}
-                                    className={`${s.dia != 0 ? 'bg-white' : ''} border-2 border-slate-400 rounded-md py-1 px-4 m-2 w-1/3`}>
-                                    <p className={`uppercase tracking-widest font-bold ${s.dia != 0 ? 'text-[#EE64C5]' : ''} `}>Sesión {index + 1}</p>
-                                    <p className="uppercase text-bold">{s.dia != 0 ? dayjs(s.fecha).format("DD/MMM/YY HH:mm") : '--/--/-- --:--'}</p>
+                        <div className="flex flex-wrap justify-center">
+                            {checkOut?.sesiones && checkOut?.sesiones.map((s, index) =>
+                                <div key={`zeylada ${s}_${index}`}
+                                    className={`${s != null ? 'bg-white' : ''} border-2 border-slate-400 rounded-md py-1 px-4 m-2`}>
+                                    <p className={`uppercase tracking-widest font-bold ${s != null ? 'text-[#EE64C5]' : ''} `}>Sesión {index + 1}</p>
+                                    <p className="uppercase text-bold">{s != null ? dayjs(s).format("DD/MMM/YY HH:mm") : '--/--/-- --:--'}</p>
                                 </div>
                             )}
                         </div>
-
-                        {(!checkOut.sesionesConfirmadas && checkOut.sesionesOk) ? <div className="flex space-x-2 justify-center">
-                            <div className="button-container">
-                                <button onClick={() => {
-                                    var cal = JSON.parse(JSON.stringify(checkOut));
-                                    cal.sesionesOk = false;
-                                    setCheckOut(cal);
-                                }}
-                                    className="w-[260px] btn flex border-solid border-2 border-pink-300 rounded-lg relative overflow-hidden bg-[#EE64C5] text-2xl py-1 px-9">
-                                    <MdNavigateBefore className="mr-2" size="2rem" /> VOLVER
-                                </button>
-                            </div>
-                            <div className="button-container">
-                                <button onClick={() => {
-                                    var cal = JSON.parse(JSON.stringify(checkOut));
-                                    cal.sesionesConfirmadas = true;
-                                    setCheckOut(cal);
-                                }}
-                                    className="w-[260px] flex justify-center btn border-solid border-2 border-slate-400 rounded-lg relative overflow-hidden bg-white font-extrabold text-2xl py-1 uppercase tracking-widest">
-                                    <span className="text-black">Continuar </span><MdNavigateNext className="text-black mr-2" size="2rem" />
-                                </button>
-                            </div>
-                        </div> :
-                            (confirmando && <Loader />)}
+                        
+                        
                     </>}
 
-                    {(checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
-                        <h1 className="text-3xl text-center mb-4">
-                            <span>Fecha</span> /&nbsp;
-                            <span className="cursor-pointer text-blue-500 underline">Confirmación</span>
-                        </h1>
-                        <div className="w-full flex">
-                            <div className="w-4/12 text-center">
-                                <img src="/camara_hiperbalica.png" className="rounded-md w-full" />
+                    {(checkOut.sesiones?.length > 0 && session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && (
+                        <div className="flex justify-center">
+                            <div className="flex items-center mr-8">
+                                <input
+                                    type="checkbox"
+                                    id="giftCard"
+                                    checked={giftCard}
+                                    onChange={(e) => setGiftCard(e.target.checked)}
+                                    className="mr-2"
+                                />
+                                <label htmlFor="giftCard">Quiero regalarla como GIFTCARD</label>
                             </div>
-                            <div className="w-8/12 ml-4">
+                            <div className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    id="reserveLater"
+                                    checked={reserveLater}
+                                    onChange={(e) => setReserveLater(e.target.checked)}
+                                    className="mr-2"
+                                />
+                                <label htmlFor="reserveLater">Reservaré más adelante</label>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {((giftCard || reserveLater) && session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
+                    <div className="flex justify-center py-8 text-[#EE64C5]">
+                        {giftCard && <>
+                            <BsBalloonHeartFill size="6rem"/>
+                            <div className="ml-4">
+                                <p className="text-2xl text-[#EE64C5] font-bold uppercase tracking-wider ml-2 mt-2">¡Tu regalo le encantará!</p>
+                                <p className="text-md">Envíalo por mail, o por un cargo adicional, <br/>lo enviamos a la dirección que nos digas.</p>
+                            </div>                            
+                        </>}
+                        {reserveLater && !giftCard && <>
+                            <BsCalendarHeartFill size="6rem"/>                        
+                            <div className="ml-4">
+                                <p className="text-2xl text-[#EE64C5] font-bold uppercase tracking-wider mt-4">¡Reserva cuando quieras!</p>
+                                <p className="text-md">En tu menú, tus sesiones, podrás definirlas más adelante*.</p>
+                                <p className="text-sm">* las sisiones tienes un límite de canje.</p>
+                            </div>
+                        </>}
+                    </div>
+                    </>}
+
+                    {!checkOut.sesionesConfirmadas && (checkOut.sesionesOk || giftCard || reserveLater) ? <div className="flex space-x-2 justify-center">
+                        <div className="button-container">
+                            <button onClick={(e) => {
+                                e.preventDefault();
+                                setCheckOut({
+                                    ...checkOut,
+                                    sesionesConfirmadas: false,                                    
+                                });
+                            }}
+                                className="w-[260px] btn flex border-solid border-2 border-pink-300 rounded-lg relative overflow-hidden bg-[#EE64C5] text-2xl py-1 px-9">
+                                <MdNavigateBefore className="mr-2" size="2rem" /> VOLVER
+                            </button>
+                        </div>
+                        <div className="button-container">
+                            <button onClick={(e) => {
+                                e.preventDefault();
+                                setCheckOut({
+                                    ...checkOut,
+                                    sesionesConfirmadas: true,
+                                });
+                            }}
+                                className="w-[260px] flex justify-center btn border-solid border-2 border-slate-400 rounded-lg relative overflow-hidden bg-white font-extrabold text-2xl py-1 uppercase tracking-widest">
+                                <span className="text-black">Continuar </span><MdNavigateNext className="text-black mr-2" size="2rem" />
+                            </button>
+                        </div>
+                    </div> :
+                        (confirmando && <Loader />)}
+
+                    {(checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>                        
+                        <div className="w-full flex">
+                            <div className="w-full ml-4">
                                 <div className="w-full ml-6">
-                                    <p className="text-left text-xl uppercase tracking-widest text-[#EE64C5]">Cámara hiperbálica</p>
+                                    <p className="text-left text-xl uppercase tracking-widest text-[#EE64C5]">{catalog.specialtyName}</p>
+                                    <p className="text-xs">{catalog.name}</p>
                                 </div>
-                                <div className="w-full flex px-4">
-                                    {checkOut?.sesiones?.map((s, index) =>
-                                        <div key={`${s.numeroDia}_${s.indiceJornada}_${index}`} className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2 w-1/3">
+                                <div className="w-full flex flex-wrap px-4">
+                                    {!giftCard && !reserveLater && checkOut?.sesiones?.map((s, index) =>
+                                        <div key={`sesion_${index}`} className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2 w-1/3">
                                             <p className="font-bold uppercase tracking-widest">Sesión {index + 1}</p>
-                                            <p className="text-xs">{s.dia != 0 ? dayjs(s.fecha).format("DD/MMM/YYYY HH:mm") : '--/--/-- --:--'}</p>
+                                            <p className="text-xs">{s != null ? dayjs(s).format("DD/MMM/YYYY HH:mm") : '--/--/-- --:--'}</p>
                                         </div>
                                     )}
+                                    {giftCard && <div className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2 w-1/3">
+                                        <p className="font-bold uppercase tracking-widest text-center">GIFTCARD</p>                                        
+                                        </div>}
                                 </div>
                                 <div className="ml-6">
                                     <div>
                                         <input type="checkbox"
-                                            checked={abono}
+                                            checked={esAbonado}
                                             onChange={handleCheckboxChange} />
                                         <span>&nbsp;Deseo abonar la primera sesión.</span>
                                     </div>
                                     <p className="text-4xl font-bold">
-                                        {abono ? <>
-                                            <span className="text-sm">TOTAL</span> $ 90.000
-                                            <br /><span className="text-sm">SALDO</span> <span className="text-xl">$108.000</span>
-                                        </> : <><span className="text-sm">TOTAL</span> $ 198.000</>}
+                                        {esAbonado ? <>
+                                            <span className="text-sm">TOTAL</span> $ {numberFormat(Math.round(catalog.price * 0.25))}
+                                            <br /><span className="text-sm">SALDO</span> <span className="text-xl">$ {numberFormat(catalog.price - Math.round(catalog.price * 0.25))}</span>
+                                        </> : <><span className="text-sm">TOTAL</span> $ {numberFormat(catalog.price)}</>}
                                     </p>
                                 </div>
                             </div>
@@ -518,17 +574,17 @@ export const CheckOut = ({ session, catalogId }) => {
                     <div className="absolute flex w-[920px] z-10 text-[#A4A5A1] mt-6 p-0 mx-auto shadow-md rounded-lg bg-white overflow-hidden">
                         <img className="relative z-20 w-40 rounded-br-full" src="/tratamiento_piel.jpg" />
                         <div className="w-80 ml-4 mt-2">
-                            <p className="font-bold text-xl">Tratamiento de piel</p>
-                            <p className="text-xs">Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. Loren ipsum. </p>
+                            <p className="font-bold text-xl">{catalog.specialtyName}</p>
+                            <p className="text-xs">{catalog.name}</p>
                         </div>
                         <div className="absolute rounded-bl-lg right-0 w-fit flex h-6 bg-green-200 px-4 border-l-">
                             <div className="flex">
                                 <LiaMoneyBillSolid size="1.5rem" />
-                                <span className="text-sm ml-2 mt-0.5">$ 49.000</span>
+                                <span className="text-sm ml-2 mt-0.5">$ {numberFormat(catalog.price)}</span>
                             </div>
                             <div className="flex ml-4">
                                 <GoClockFill size="1rem" className="mt-1" />
-                                <span className="text-sm ml-1 mt-0.5">4 sesiones x <b>30 mins</b></span>
+                                <span className="text-sm ml-1 mt-0.5">{ catalog.sessionCount > 0 ? (catalog.sessionCount + ' sesiones x') : ''} <b>{catalog.durationMins} mins</b></span>
                             </div>
                         </div>
                     </div>
