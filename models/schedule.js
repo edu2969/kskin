@@ -1,9 +1,13 @@
 import mongoose, { Schema, models } from "mongoose";
 
 const scheduleSchema = new Schema({
-    specialistId: {
+    specialistIds: {
         type: [mongoose.Types.ObjectId],
         ref: "Specialist",
+    },
+    orderId: {
+        type: mongoose.Types.ObjectId,
+        ref: "Order",
     },
     clientId: {
         type: mongoose.Types.ObjectId,

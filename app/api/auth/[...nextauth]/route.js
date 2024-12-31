@@ -1,15 +1,17 @@
+import NextAuth from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/models/user";
-import NextAuth from "next-auth/next";
-import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
 export const authOptions = {
   providers: [
     CredentialsProvider({
       name: "credentials",
-      credentials: {},
-
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
       async authorize(credentials) {
         const { email, password } = credentials;
 
@@ -29,6 +31,7 @@ export const authOptions = {
           return user;
         } catch (error) {
           console.log("Error: ", error);
+          return null;
         }
       },
     }),
@@ -42,7 +45,7 @@ export const authOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      if(user) {
+      if (user) {
         token.id = user._id;
         token.email = user.email;
         token.role = user.role;
@@ -53,11 +56,11 @@ export const authOptions = {
       if (token) {
         session.user.id = token.id;
         session.user.email = token.email;
-        session.user.role = token.role; // Include role in the session
+        session.user.role = token.role; 
       }
       return session;
     },
-  }
+  },
 };
 
 const handler = NextAuth(authOptions);

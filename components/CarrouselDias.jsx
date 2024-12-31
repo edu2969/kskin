@@ -7,6 +7,16 @@ export const CarrouselDias = ({fecha, setFecha, cargarHorarios}) => {
     const [indiceInicial, setIndiceInicial] = useState(1);
     const [transicion, setTransicion] = useState(false);
     const [diasVisibles, setDiasVisibles] = useState([]);
+    const timeoutRef = useRef(null);
+
+    const resetTimeout = () => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+        timeoutRef.current = setTimeout(() => {
+            cargarHorarios();
+        }, 1000);
+    };
 
     const avanzarDia = () => {
         setDireccion(1);
@@ -15,13 +25,13 @@ export const CarrouselDias = ({fecha, setFecha, cargarHorarios}) => {
         setTimeout(() => {
             setTransicion(true);
             var nuevoDia = dayjs(fecha).add(1, "days");
-            if(nuevoDia.day() == 6) {
+            if (nuevoDia.day() === 6) {
                 nuevoDia = nuevoDia.add(2, "days");
             }
             setFecha(nuevoDia.toDate());
             initDays(nuevoDia.toDate());
             setIndiceInicial((prevIndice) => (prevIndice - 1));
-            cargarHorarios();
+            resetTimeout();
         }, 300);
     };
 
@@ -32,18 +42,18 @@ export const CarrouselDias = ({fecha, setFecha, cargarHorarios}) => {
         setTimeout(() => {
             setTransicion(true);
             var diaTope = dayjs(fecha).add(2, "days").toDate();
-            if(dayjs(diaTope).isBefore(dayjs())) {
-                console.log("isBefore", nuevoDia);
-                setIndiceInicial((prevIndice) => (prevIndice + 1));                
+            if (dayjs(diaTope).isBefore(dayjs())) {
+                console.log("isBefore", diaTope);
+                setIndiceInicial((prevIndice) => (prevIndice + 1));
             } else {
                 var nuevoDia = dayjs(fecha).add(-1, "days");
-                if(nuevoDia.day() == 0) {
+                if (nuevoDia.day() === 0) {
                     nuevoDia = nuevoDia.add(-2, "days");
                 }
                 setIndiceInicial((prevIndice) => (prevIndice + 1));
                 setFecha(nuevoDia.toDate());
                 initDays(nuevoDia.toDate());
-                cargarHorarios();
+                resetTimeout();
             }
         }, 300);
     };

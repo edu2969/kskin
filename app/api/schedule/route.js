@@ -1,10 +1,8 @@
 import { connectMongoDB } from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
-import mongoose from 'mongoose';
 import Catalog from '@/models/Catalog';
 import Schedule from '@/models/Schedule';
 import Specialist from '@/models/Specialist';
-import { image } from 'd3';
 
 export async function POST(req) {
   try {
@@ -14,7 +12,8 @@ export async function POST(req) {
 
     let schedule;
     if (id) {
-      schedule = await Schedule.findByIdAndUpdate(id, { specialistId, clientId, clientName, email, phone, catalogId, startDate, durationMins, cleanUpMins, allDay, fromDate, toDate, noAvailables }, { new: true });
+      console.log("UPDATING", id, { specialistId, clientId, clientName, email, phone, catalogId, startDate: new Date(startDate), durationMins, cleanUpMins, allDay, fromDate, toDate, noAvailables });
+      schedule = await Schedule.findByIdAndUpdate(id, { specialistId, clientId, clientName, email, phone, catalogId, startDate: new Date(startDate), durationMins, cleanUpMins, allDay, fromDate, toDate, noAvailables }, { new: true });
     } else {
       const reg = { specialistId, clientId, clientName, email, phone, catalogId, startDate, durationMins, cleanUpMins, allDay, fromDate, toDate, noAvailables };
       console.log("CREATING", reg);
@@ -29,18 +28,21 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
-    console.log("REQ!");
+    console.log("GET Schedule");
     await connectMongoDB();
     
     const url = new URL(req.url);
-    const date = url.searchParams.get('date');
+    const date = url.searchParams.get('date') + "T23:59:59";
     const catalogId = url.searchParams.get('catalogId');
+    
+    console.log("ME INTERESA", date, catalogId);
 
     if (!date || !catalogId) {
       return NextResponse.json({ ok: false, error: "Missing date or catalogId" }, { status: 400 });
     }
 
-    const catalog = await Catalog.findOne({ id: catalogId }).lean();
+    const catalog = await Catalog.findOne({ _id: catalogId }).lean();
+    console.log("CATALOG ------------>>", catalog);
     if (!catalog) {
       return NextResponse.json({ ok: false, error: "Catalog not found" }, { status: 404 });
     }
@@ -56,8 +58,6 @@ export async function GET(req) {
 
     const specialists = await Specialist.find({
       active: true,
-      startDate: { $lte: startOfDay },
-      endDate: { $gte: endOfDay }
     }).lean();
 
     const schedules = await Schedule.find({
@@ -84,7 +84,7 @@ export async function GET(req) {
       }
 
       const isSlotAvailable = specialists.some(specialist => {
-        const specialistSchedules = schedules.filter(schedule => schedule.specialistId.toString() === specialist._id.toString());
+        const specialistSchedules = schedules.filter(schedule => schedule.specialistId === specialist._id);
         return !specialistSchedules.some(schedule => {
           const scheduleStart = new Date(schedule.startDate);
           const scheduleEnd = new Date(scheduleStart);
@@ -108,6 +108,21 @@ export async function GET(req) {
     return NextResponse.json(availableSlots);
   } catch (error) {
     console.error('Error fetching available slots:', error);
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req) {
+  try {
+    console.log("PUT!?");
+    await connectMongoDB();
+    const { id } = req.params;
+    const { date, time } = await req.json();
+
+    const updatedSchedule = await Schedule.findByIdAndUpdate(id, { date, time }, { new: true }).lean();
+    return NextResponse.json(updatedSchedule);
+  } catch (error) {
+    console.error('Error updating schedule:', error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 }

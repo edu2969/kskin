@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogTitle } from "@headlessui/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaChevronLeft, FaChevronRight, FaSearch } from "react-icons/fa";
@@ -9,6 +9,7 @@ import { Loader } from "../Loader";
 import dayjs from "dayjs";
 import 'dayjs/locale/es'
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { SPECIALTY_NAMES, SPECIALTY_PALETTE } from "@/app/utils/colorsPalette";
 
 dayjs.extend(customParseFormat);
 dayjs.locale("es")
@@ -17,7 +18,7 @@ const COLORS = ["green", "blue", "red", "purple", "yellow", "orange", "indigo"]
 const daysOfWeek = Array.from({ length: 7 }, (_, i) => dayjs().day((i + 1) % 7).format("dddd"));
 const hours = Array.from({ length: 6 }, (_, i) => `${i * 2 + 8}:00`);
 
-export const Calendar = ({ session, height }) => {
+export const CalendarView = ({ session, height }) => {
   const [currentWeek, setCurrentWeek] = useState(dayjs().startOf("week"));
   const [events, setEvents] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -31,15 +32,22 @@ export const Calendar = ({ session, height }) => {
     email: "",
     startDate: new Date(),
     time: "09:00",
+    startDate: dayjs().format("YYYY-MM-DD"),
     durationMins: 45,
     cleanUpMins: 15,
     noAvailables: [],
   });
-
   const [direction, setDirection] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isAllDay, setIsAllDay] = useState(false);
-  const [focus, setFocus] = useState(false)
+  const [focus, setFocus] = useState(false);
+  const [catalogs, setCatalogs] = useState([]);
+  const [specialties, setSpecialties] = useState([]);
+  const [selectedSpecialty, setSelectedSpecialty] = useState(null);
+  const [selectedCatalog, setSelectedCatalog] = useState(null);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
 
   const variants = {
     enter: (direction) => ({ x: direction > 0 ? "100%" : "-100%", opacity: 1 }),
@@ -74,7 +82,6 @@ export const Calendar = ({ session, height }) => {
   };
 
   const handleTimeSlotClick = (day, e) => {
-    //console.log("Click DAY", day, day.format())
     const containerTop = e.currentTarget.getBoundingClientRect().top;
     const minY = (e.clientY - containerTop - 96);
     const clickY = minY < 0 ? 0 : minY;
@@ -82,17 +89,18 @@ export const Calendar = ({ session, height }) => {
     const hourHeight = e.currentTarget.offsetHeight / hoursInDay;
     const clickedHour = Math.floor(clickY / hourHeight);
     const clickedMinutes = Math.round((clickY % hourHeight) / (hourHeight / 4)) * 15;
-    const startTime = dayjs(day).hour(8 + clickedHour).minute(clickedMinutes);    
-    setSelectedCategory(null);
+    const startDate = dayjs(day).hour(8 + clickedHour).minute(clickedMinutes);
+    setSelectedSpecialty(null);
     setSelectedEvent({
-      ...selectedEvent, day, startTime,      
+      ...selectedEvent, day, startDate,
       type: "schedule",
       clientId: null,
       clientName: "",
       phone: 56,
       email: "",
       specialistId: session.user?.id,
-      time: `${startTime.format("HH:mm")}`,
+      time: `${startDate.format("HH:mm")}`,
+      startDate: startDate.format("YYYY-MM-DD"),
       title: "",
       catalogId: "",
       specialtyId: "",
@@ -124,18 +132,18 @@ export const Calendar = ({ session, height }) => {
         newRule = newRule.filter((d) => d !== "Días hábiles" && d !== "Todos los días");
       }
     }
-    setSelectedEvent({ 
-      ...selectedEvent, 
-      noAvailables: newRule, 
+    setSelectedEvent({
+      ...selectedEvent,
+      noAvailables: newRule,
       isValid: validateEvent({
-        ...selectedEvent, 
-        noAvailables: newRule, 
-      }) 
+        ...selectedEvent,
+        noAvailables: newRule,
+      })
     });
   };
 
   const toggleAllDayCheckbox = () => {
-    setIsAllDay(!isAllDay);    
+    setIsAllDay(!isAllDay);
     setSelectedEvent({
       ...selectedEvent,
       allDay: !isAllDay,
@@ -150,43 +158,54 @@ export const Calendar = ({ session, height }) => {
     console.log("SELECTED_EVENT", selectedEvent);
     let reg = {
       specialistId: selectedEvent.specialistId,
-      startDate: selectedEvent.startTime,      
+      startDate: dayjs(selectedEvent.startDate, "YYYY-MM-DD").hour(Number(selectedEvent.time.split(":")[0])).minute(Number(selectedEvent.time.split(":")[1])).toDate(),
     }
-    if(selectedEvent.type == "schedule") {
+    if (selectedEvent.type == "schedule") {
       reg.catalogId = selectedEvent.catalogId;
       reg.durationMins = selectedEvent.durationMins;
-      if(reg.cleanUpMins) {
+      if (reg.cleanUpMins) {
         reg.cleanUpMins = selectedEvent.cleanUpMins;
       }
     }
-    if(selectedEvent.clientId) {
+    if (selectedEvent.clientId) {
       reg.clientId = selectedEvent.clientId;
-      if(selectedEvent.clientName) {
+      if (selectedEvent.clientName) {
         reg.clientName = selectedEvent.clientName;
       }
-      if(selectedEvent.phone) {
+      if (selectedEvent.phone) {
         reg.phone = selectedEvent.phone;
       }
     }
-    if(selectedEvent.allDay) {
+    if (selectedEvent.allDay) {
       reg.startDate = selectedEvent.day
         .startOf("day").toDate();
       reg.allDay = true;
     }
-    if(selectedEvent.isRepeating) {
+    if (selectedEvent.isRepeating) {
       reg.fromDate = selectedEvent.fromDate;
       reg.toDate = selectedEvent.toDate;
     }
-    if(selectedEvent.id) {
-      reg.id = selectedEvent._id;
+    if (selectedEvent.id) {
+      reg.id = selectedEvent.id;
     }
     console.log("POSTING", reg);
-    const schedule = await axios.post('/api/schedule', reg)
-    if (!selectedEvent._id) {
-      setSelectedEvent({ ...selectedEvent, _id: schedule._id });
+    const schedule = await axios.post('/api/schedule', reg);
+    reg.startDate = selectedEvent.startDate;
+    if (!selectedEvent.id) {      
+      setSelectedEvent({ ...selectedEvent, id: schedule._id });
       setEvents((prevEvents) => [...prevEvents,])
+    } else {
+      setSelectedEvent({
+        ...selectedEvent,
+        ...reg
+      });
+      console.log("UPDATED", {
+        ...selectedEvent,
+        ...reg
+      });
     }
-    setEvents((prevEvents) => [...prevEvents, selectedEvent]);
+    selectedEvent.day = dayjs(selectedEvent.startDate);      
+    setEvents(events.map(event => event.id === selectedEvent.id ? { ...selectedEvent, ...reg } : event));
     handleCloseDialog();
   };
 
@@ -195,39 +214,39 @@ export const Calendar = ({ session, height }) => {
     setSelectedEvent(null);
   };
 
-  const ROW_HEIGHT_FACTOR = 1.25;
-  const EVENT_HEIGHT_FACTOR = 38.5;
+  const ROW_HEIGHT_FACTOR = 1.249;
+  const EVENT_HEIGHT_FACTOR = 38.39;
   const ROW_OFFSET = 16;
 
-  const getTimePosition = (startTime) => {
-    const [startHour, startMinute] = startTime.split(":").map(Number);
+  const getTimePosition = (startDate) => {
+    const [startHour, startMinute] = startDate.split(":").map(Number);
     return ((startHour - 8) * EVENT_HEIGHT_FACTOR + startMinute) * ROW_HEIGHT_FACTOR + ROW_OFFSET;
   };
 
-  const getEventHeight = (startTime, durationMins) => {
-    const start = dayjs(startTime, "HH:mm");
-    const end = start.add(durationMins, "minutes");    
+  const getEventHeight = (startDate, durationMins) => {
+    const start = dayjs(startDate, "HH:mm");
+    const end = start.add(durationMins, "minutes");
     const [startHour, startMinute] = start.format("HH:mm").split(":").map(Number);
-    const [endHour, endMinute] = end.format("HH:mm").split(":").map(Number);    
+    const [endHour, endMinute] = end.format("HH:mm").split(":").map(Number);
     const duration = (endHour - startHour) * EVENT_HEIGHT_FACTOR + (endMinute - startMinute);
     return duration * ROW_HEIGHT_FACTOR;
   };
 
-  const calculateEndTime = (startTime, durationMins) => {
-    return dayjs(startTime, "HH:mm").add(durationMins, "minute").format("HH:mm");
+  const calculateEndTime = (startDate, durationMins) => {
+    return dayjs(startDate, "HH:mm").add(durationMins, "minute").format("HH:mm");
   };
 
   const validateEvent = (evnt) => {
     var isValid;
     console.log("VALIDANDO", evnt)
-    if(evnt.type === "schedule") {
-      isValid = (evnt.clientId != null 
-      || (evnt.clientId == null 
-        && evnt.clientName != ""
-        && evnt.email != ""))
+    if (evnt.type === "schedule") {
+      isValid = (evnt.clientId != null
+        || (evnt.clientId == null
+          && evnt.clientName != ""
+          && evnt.email != ""))
         && evnt.catalogId != ""
         && evnt.specialtyId != "";
-    } else if(evnt.type === "unavailable") {
+    } else if (evnt.type === "unavailable") {
       isValid = (evnt.isRepeating && evnt.fromDate
         && evnt.toDate && evnt.noAvailables?.length > 0)
         || evnt.allDay;
@@ -236,85 +255,82 @@ export const Calendar = ({ session, height }) => {
     return isValid ? true : false;
   }
 
-  const [catalogs, setCatalogs] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedService, setSelectedService] = useState(null);
-  const [loadingEvents, setLoadingEvents] = useState(true);
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-
+  const isMounted = useRef(false);
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      initData();
+    }
+  }, []);
+
+  const initData = () => {
+    console.log("SESSION", session);
     const fetchCatalogs = async () => {
-      try {
-        const response = await axios.post(`/api/catalog/bySpecialist/`, { id: session?.user?.id });
-        var categories = []
-        var fullCatalog = {}
+      const respSpecialties = await axios.get(`/api/specialties/`);
+      console.log("SPECIALTIES", respSpecialties.data);
+      setSpecialties(respSpecialties.data);
 
-        response.data.forEach(d => {
-          if (categories.indexOf(d.specialty.name) == -1) {
-            categories.push(d.specialty.name);
-            fullCatalog[d.specialty.name] = [d];
-          } else {
-            fullCatalog[d.specialty.name].push(d);
-          }
-        })        
-        setCatalogs(fullCatalog);
-        setSelectedCategory(null)
-        setSelectedService(null)
+      const response = await axios.get(`/api/catalog/`);
+      setCatalogs(response.data.catalogs);      
 
-        console.log("response1.data", response.data)
+      console.log("FULLCATALOG", response.data)
+      setSelectedSpecialty(null);
+      setSelectedCatalog(null);
 
-        const resp2 = await axios.post(`/api/schedule/bySpecialist/`, { id: session?.user?.id });
-        const decoratedEvents = resp2?.data.map(s => {
-          const catalog = response.data.find(c => {
-            return c._id == s.catalogId
-          })
-          return s.clientId ? {
-            id: s._id,
-            type: "schedule",
-            title: catalog.specialty.name,
-            specialistId: session.user?._id,
-            startTime: s.startDate,
-            day: dayjs(s.startDate),
-            time: dayjs(s.startDate).format("HH:mm"),
-            clientId: s.clientId,            
-            catalogId: catalog._id,
-            serviceName: catalog.name,
-            specialtyId: catalog.specialtyId,
-            durationMins: s.duration,
-            cleanUpMins: catalog.cleanUpMins,
-            color: COLORS[categories.indexOf(catalog.specialty.name)]
-          } : {
-            id: s.id,
-            type: "unavailable",
-            time: dayjs(s.startDate).format("HH:mm"),
-            startDate: dayjs(s.startDate).toDate(),
-            endTime: s.endDate,
-            allDay: s.allDay,
-            durationMins: s.durationMins,
-            noAvailables: s.noAvailables
-          };
-        })
-        console.log("DecoratedEvents", decoratedEvents)
-        setEvents(decoratedEvents)
-        setLoadingEvents(false);
-        fetchClients();
-      } catch (error) {
-        console.error('Error fetching catalog:', error);
-      }
+      console.log("response1.data", response.data)
+
+      const resp2 = await axios.post(`/api/schedule/bySpecialist/`, { id: session?.user?.id });
+      console.log("response2.data", resp2.data);
+      const decoratedEvents = resp2?.data.map(s => {
+        const catalog = response.data.catalogs.find(c => {
+          return c._id == s.catalogId
+        });
+        console.log("CATALOG", catalog);
+        const specialty = respSpecialties.data.find(s => s._id == catalog.specialtyId);
+        console.log("SPECIALTY", specialty);
+        return s.clientId ? {
+          id: s._id,
+          type: "schedule",
+          title: catalog.name,
+          specialistId: session.user?.id,
+          startDate: s.startDate,
+          day: dayjs(s.startDate),
+          time: dayjs(s.startDate).format("HH:mm"),
+          clientId: s.clientId,
+          catalogId: catalog._id,
+          serviceName: catalog.name,
+          specialtyId: catalog.specialtyId,
+          durationMins: s.duration,
+          cleanUpMins: catalog.cleanUpMins,
+          color: SPECIALTY_PALETTE[SPECIALTY_NAMES.indexOf(specialty?.shortName)],
+        } : {
+          id: s.id,
+          type: "unavailable",
+          time: dayjs(s.startDate).format("HH:mm"),
+          startDate: dayjs(s.startDate).toDate(),
+          endTime: s.endDate,
+          allDay: s.allDay,
+          durationMins: s.durationMins,
+          noAvailables: s.noAvailables
+        };
+      })
+      console.log("DecoratedEvents", decoratedEvents)
+      setEvents(decoratedEvents)
+      setLoadingEvents(false);
+      fetchClients();
     };
 
     const fetchClients = async () => {
       try {
-        const response = await axios.get('/api/client');        
-        setSuggestions(response.data);        
+        const response = await axios.get('/api/client');
+        setSuggestions(response.data);
       } catch (error) {
         console.error('Error fetching clients:', error);
       }
     };
 
     fetchCatalogs();
-  }, [])
+  }
 
   const filteredSuggestions = suggestions.filter(
     (user) =>
@@ -393,14 +409,14 @@ export const Calendar = ({ session, height }) => {
                             dayjs(event.day).isSame(currentWeek.add(index + offset * 7, "day"), "day")
                           )
                           .map((event, indiceEvento) => (
-                            <div                            
+                            <div
                               key={`_calendarObj_${indiceEvento}`}
                               className={`absolute z-10 left-0 right-0 px-2 py-0.5 text-sm rounded shadow-md cursor-pointer ${event.type === "unavailable"
                                 ? "bg-pink-200"
                                 : `bg-${event.color}-200 border-t-2 border-t-${event.color}-500`}`}
                               style={{
                                 top: `${getTimePosition(event.allDay ? "08:00" : event.time)}px`,
-                                height: `${getEventHeight(event.allDay ? "08:00" : event.time, 
+                                height: `${getEventHeight(event.allDay ? "08:00" : event.time,
                                   event.allDay ? 636 : (event.durationMins + (event.cleanUpMins || 0)))}px`,
                                 backgroundImage:
                                   event.type === "unavailable"
@@ -419,12 +435,12 @@ export const Calendar = ({ session, height }) => {
                                   phone: user.phone,
                                   email: user.email,
                                   isValid: true,
-                                });                                
+                                });
                                 setQuery(user.name);
                                 setIsDialogOpen(true);
                               }}
                             >
-                              {event.type === "schedule" && <div className={`font-bold text-xs text-${event.color}-500`}>{event.title}</div>}
+                              {event.type === "schedule" && <div className={`font-bold  uppercase text-xs text-${event.color}-500`}>{event.title}</div>}
                               {!event.allDay && <div className={`text-xs text-${event.type === "schedule" ? event.color : 'black'}-500 ${event.type === "unavailable" ? "font-bold" : ""}`}>{event.time} - {calculateEndTime(event.time, event.durationMins + (event.cleanUpMins || 0))}</div>}
                             </div>
                           ))}
@@ -442,15 +458,7 @@ export const Calendar = ({ session, height }) => {
                         >
                           <span className={`text-xs text-white bg-pink-500 rounded px-1 font-bold`}>{index < 5 ? "13:00 - 14:00" : "08:00 - 19:00"}</span>
                         </div>
-
-
                       </div>
-
-
-
-                      
-
-
                     </div>
                   ))}
                 </div>
@@ -494,10 +502,11 @@ export const Calendar = ({ session, height }) => {
                     onChange={(e) => {
                       setIsRepeating(false);
                       setIsAllDay(false);
-                      setSelectedEvent({ 
-                        ...selectedEvent, 
-                        type: e.target.value, 
-                        isValid: validateEvent({ ...selectedEvent, type: e.target.value }) })
+                      setSelectedEvent({
+                        ...selectedEvent,
+                        type: e.target.value,
+                        isValid: validateEvent({ ...selectedEvent, type: e.target.value })
+                      })
                     }}
                     className="form-select mt-1 w-full border-2 pl-2 border-gray-200 rounded-md pt-2.5 pb-2.5  max-w-xs"
                   >
@@ -517,8 +526,9 @@ export const Calendar = ({ session, height }) => {
                         placeholder="Buscar..."
                         value={query}
                         onChange={(e) => {
-                          if(e.target.value == "") {
-                            setSelectedEvent({...selectedEvent, 
+                          if (e.target.value == "") {
+                            setSelectedEvent({
+                              ...selectedEvent,
                               clientId: null,
                               email: "",
                               phone: "",
@@ -536,29 +546,31 @@ export const Calendar = ({ session, height }) => {
                       {(focus && query && filteredSuggestions.length > 0) && (
                         <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1">
                           {filteredSuggestions.map((user) => (
-                              <div
-                                key={user._id}
-                                className="py-0 px-2 cursor-pointer hover:bg-gray-200"
-                                onClick={() => {
-                                  setSelectedEvent({ ...selectedEvent,  
+                            <div
+                              key={user._id}
+                              className="py-0 px-2 cursor-pointer hover:bg-gray-200"
+                              onClick={() => {
+                                setSelectedEvent({
+                                  ...selectedEvent,
+                                  clientId: user._id,
+                                  clientName: user.name || '',
+                                  email: user.email || '',
+                                  phone: user.phone || 56,
+                                  isValid: validateEvent({
+                                    ...selectedEvent,
                                     clientId: user._id,
                                     clientName: user.name || '',
                                     email: user.email || '',
                                     phone: user.phone || 56,
-                                    isValid: validateEvent({ ...selectedEvent,  
-                                      clientId: user._id,
-                                      clientName: user.name || '',
-                                      email: user.email || '',
-                                      phone: user.phone || 56,                                      
-                                    }),
-                                  })
-                                  setQuery(user.name)
-                                  setFocus(false)                     
-                                }}
-                              >
-                                <span className="text-sm mt-0"><b>{user.name}</b></span><br/><span className="relative text-xs -top-2">{user.email}</span>
-                              </div>
-                            ))}
+                                  }),
+                                })
+                                setQuery(user.name)
+                                setFocus(false)
+                              }}
+                            >
+                              <span className="text-sm mt-0"><b>{user.name}</b></span><br /><span className="relative text-xs -top-2">{user.email}</span>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -569,13 +581,13 @@ export const Calendar = ({ session, height }) => {
                       placeholder="correo@dominio.cc"
                       className="form-select mt-1 block w-full border-2 border-gray-200 rounded-md p-2 max-w-xs"
                       onChange={(e) => {
-                        setSelectedEvent({ 
-                          ...selectedEvent, 
-                          email: e.target.value, 
-                          isValid: validateEvent({ 
-                            ...selectedEvent,  
+                        setSelectedEvent({
+                          ...selectedEvent,
+                          email: e.target.value,
+                          isValid: validateEvent({
+                            ...selectedEvent,
                             email: e.target.value
-                          }) 
+                          })
                         })
                       }} />
                   </div>
@@ -596,8 +608,8 @@ export const Calendar = ({ session, height }) => {
                       <select
                         value={selectedEvent.title}
                         onChange={(e) => {
-                          if(e.target.value != "") {
-                            setSelectedCategory(catalogs[e.target.value]);
+                          if (e.target.value != "") {
+                            setSelectedSpecialty(catalogs[e.target.value]);
                             setSelectedEvent({
                               ...selectedEvent,
                               title: e.target.value,
@@ -608,7 +620,7 @@ export const Calendar = ({ session, height }) => {
                               isValid: false,
                             })
                           } else {
-                            setSelectedCategory(null);
+                            setSelectedSpecialty(null);
                             setSelectedEvent({
                               ...selectedEvent,
                               title: "",
@@ -618,7 +630,7 @@ export const Calendar = ({ session, height }) => {
                               color: null,
                               isValid: false,
                             })
-                          }                          
+                          }
                         }}
                         className="form-select mt-1 w-full border-2 border-gray-200 rounded-md pl-2 py-2.5 max-w-xs"
                       >
@@ -668,7 +680,7 @@ export const Calendar = ({ session, height }) => {
                         className="form-select mt-1 border-2 border-gray-200 rounded-md pl-2 py-2.5 w-full"
                       >
                         <option value="">Seleccione uno</option>
-                        {selectedCategory && selectedCategory.length > 0 && selectedCategory.map(c => (
+                        {selectedSpecialty && selectedSpecialty.length > 0 && selectedSpecialty.map(c => (
                           <option key={c._id} value={c.name} id={c._id}>
                             {c.name.substring(0, 35) + (c.name.length > 35 ? '…' : '')}
                           </option>
@@ -677,7 +689,7 @@ export const Calendar = ({ session, height }) => {
                     </div>
                   </div>
                 </>
-              )}              
+              )}
 
               {selectedEvent.type === "unavailable" && (
                 <div className="w-1/4 mt-14 ml-6">
@@ -703,9 +715,24 @@ export const Calendar = ({ session, height }) => {
                   className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
                 />
                 <span className="ml-2">Todo el día</span>
-                </div>}
+              </div>}
+              
+              {!isAllDay && <div className="w-1/2 mt-4">
+                <label className="block text-sm font-bold text-gray-700">Fecha</label>
+                <input
+                  type="date"
+                  value={dayjs(selectedEvent.startDate).format("YYYY-MM-DD")}
+                  onChange={(e) => {
+                    console.log("DATE--->", new Date(e.target.value));
+                    setSelectedEvent({
+                      ...selectedEvent,
+                      startDate: dayjs(e.target.value).format("YYYY-MM-DD"),
+                    })}}
+                  className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2 pb-2.5"
+                />
+              </div>}
 
-              {!isAllDay && <div className="w-1/3 mt-4">
+              {!isAllDay && <div className="w-1/2 mt-4 pl-4">
                 <label className="block text-sm font-bold text-gray-700">Hora de inicio</label>
                 <input
                   type="time"
@@ -721,21 +748,21 @@ export const Calendar = ({ session, height }) => {
                 />
               </div>}
 
-              {!isAllDay && <div className="w-1/3 mt-4 pl-4">
+              {!isAllDay && <div className="w-1/2 mt-4">
                 <label className="block text-sm font-bold text-gray-700">Duración mins.</label>
                 <input
                   type="number"
                   value={selectedEvent.durationMins}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSelectedEvent({
                       ...selectedEvent,
                       durationMins: Number(e.target.value),
                     })}
-                  className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2 pb-2.5"                  
+                  className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2 pb-2.5"
                 />
               </div>}
 
-              {selectedEvent.type === "schedule" && <div className="w-1/3 mt-4 pl-4">
+              {selectedEvent.type === "schedule" && <div className="w-1/2 mt-4 pl-4">
                 <label className="block text-sm font-bold text-gray-700">Limpieza mins.</label>
                 <input
                   type="number"
@@ -746,9 +773,9 @@ export const Calendar = ({ session, height }) => {
                       cleanUpMins: Number(e.target.value),
                     })
                   }
-                  className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2 pb-2.5"                  
+                  className="form-input mt-1 block w-full border-2 border-gray-200 rounded-md p-2 pb-2.5"
                 />
-              </div>}              
+              </div>}
 
               {(selectedEvent.type === "unavailable" && isRepeating) && <div className="flex w-full"><div className="w-1/2 mt-4 mr-4">
                 <label className="block text-sm font-bold text-gray-700">Fecha de inicio</label>
@@ -805,15 +832,13 @@ export const Calendar = ({ session, height }) => {
             <div className="mt-4 flex justify-end space-x-2">
               <button
                 onClick={handleCloseDialog}
-                className="flex items-center px-4 py-2 bg-red-600 text-white rounded"
-              >
+                className="flex items-center px-4 py-2 bg-red-600 text-white rounded">
                 <FiTrash2 className="mr-2" /> Eliminar
               </button>
               <button
                 onClick={handleSaveEvent}
                 disabled={!selectedEvent.isValid && 'disabled'}
-                className={`flex items-center px-4 py-2 bg-${!selectedEvent.isValid ? 'slate-300' : 'green-500'} text-white rounded`}
-              >
+                className={`flex items-center px-4 py-2 bg-${!selectedEvent.isValid ? 'slate-300' : 'green-500'} text-white rounded`}>
                 <FiSave className="mr-2" /> Guardar
               </button>
             </div>

@@ -1,23 +1,30 @@
 import mongoose, { Schema, models } from "mongoose";
 
 const specialtySchema = new Schema({
-        name: {
-            type: String,
-            required: true,
-        },
-        startDate: {
-            type: Date,
-            required: true,
-        },
-        endDate: {
-            type: Date,
-            required: true,
-        },
-        active: {
-            type: Boolean,
-            required: true,
-        },
+    shortName: {
+        type: String,
+        required: true,
     },
+    name: {
+        type: String,
+        required: true,
+    },
+    startDate: {
+        type: Date,
+        required: true,
+    },
+    endDate: {
+        type: Date,
+        required: true,
+    },
+    active: {
+        type: Boolean,
+        required: true,
+    },
+    urlImg: {
+        type: String,
+    },
+},
     { timestamps: true }
 );
 

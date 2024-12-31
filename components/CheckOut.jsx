@@ -1,5 +1,5 @@
 'use client'
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { TbBrandGoogleFilled } from "react-icons/tb"
 import { FaEye, FaEyeSlash, FaMeta } from "react-icons/fa6"
@@ -16,6 +16,7 @@ import numberFormat from "@/app/utils/currency"
 import dayjs from "dayjs";
 import axios from 'axios';
 import 'dayjs/locale/es';
+import Link from "next/link";
 
 dayjs.locale("es");
 
@@ -30,7 +31,7 @@ export const CheckOut = ({ session, catalogId }) => {
         return hoy.toDate();
     }
 
-    const [sessionId, setSessionId] = useState(new Date().getTime());
+    const [sessionId] = useState(new Date().getTime());
     const [fecha, setFecha] = useState(getPrimerDia());
     const [horarios, setHorarios] = useState([]);
 
@@ -126,7 +127,8 @@ export const CheckOut = ({ session, catalogId }) => {
     const handleSelectPlace = async (indiceHorario) => {
         const indice = checkOut.sesiones.findIndex(s => s == null);
         var sesiones = checkOut.sesiones;
-        sesiones[indice] = dayjs(fecha).toDate();
+        const horario = dayjs(horarios[indiceHorario].fecha);
+        sesiones[indice] = dayjs(fecha).hour(horario.hour()).minute(horario.minute()).startOf("minute").toDate();
         console.log("CHECKOUY", {
             ...checkOut,
             sesiones,
@@ -150,10 +152,12 @@ export const CheckOut = ({ session, catalogId }) => {
                 catalogId: catalogId,
                 sessions: checkOut.sesiones,
                 esAbonado: esAbonado,
+                esGiftCard: giftCard,
             })
         })
         setConfirmando(true);
         const r = await resp.json();
+        console.log("TOKEN", r);
         if(r.url && r.token) {
             window.location = `${r.url}?token_ws=${r.token}`
         } else alert("ERROR", r);        
@@ -174,7 +178,8 @@ export const CheckOut = ({ session, catalogId }) => {
                 },
                 body: JSON.stringify({
                     token: token_ws,
-                    catalogId: catalogId
+                    catalogId: catalogId,
+                    clientId: session?.user?.id,
                 })
             });
             const respVerify = await verification.json();
@@ -333,7 +338,7 @@ export const CheckOut = ({ session, catalogId }) => {
                                         }
                                     })}
                                     id="email"
-                                    className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-white bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
+                                    className="block px-2.5 pb-2.5 pt-4 w-full text-sm bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
                                 <label htmlFor="email" className="absolute text-sm text-gray-400 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-gray-400 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
                                     e-mail</label>
                             </div>
@@ -342,7 +347,7 @@ export const CheckOut = ({ session, catalogId }) => {
                                 <input type={passwordVisible ? 'text' : 'password'}
                                     {...register('password', { required: true })}
                                     id="password"
-                                    className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-white bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
+                                    className="block px-2.5 pb-2.5 pt-4 w-full text-sm bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
                                 <label htmlFor="password" className="absolute text-sm text-gray-400 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-[#A4A5A1] peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
                                     password</label>
                                 <div className="absolute right-3 top-2.5 cursor-pointer" onClick={() => { setPasswordVisible(!passwordVisible) }}>
@@ -354,7 +359,7 @@ export const CheckOut = ({ session, catalogId }) => {
                                 <input type={repasswordVisible ? 'text' : 'password'}
                                     {...register('repassword', { required: true })}
                                     id="repassword"
-                                    className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-white bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
+                                    className="block px-2.5 pb-2.5 pt-4 w-full text-sm bg-transparent rounded-xl border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
                                 <label htmlFor="repassword" className="absolute text-sm text-gray-300 dark:text-white duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#f2f2f2] dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-[#A4A5A1] peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">
                                     re-password</label>
                                 <div className="absolute right-3 top-2.5 cursor-pointer" onClick={() => { setRepasswordVisible(!repasswordVisible) }}>
@@ -426,20 +431,20 @@ export const CheckOut = ({ session, catalogId }) => {
                                     id="giftCard"
                                     checked={giftCard}
                                     onChange={(e) => setGiftCard(e.target.checked)}
-                                    className="mr-2"
+                                    className="mr-2 w-5 h-5"
                                 />
-                                <label htmlFor="giftCard">Quiero regalarla como GIFTCARD</label>
+                                <label htmlFor="giftCard" className="text-[#EE64C5]">Quiero regalarla como GIFTCARD</label>
                             </div>
-                            <div className="flex items-center">
+                            {!checkOut.sesionesOk && <div className="flex items-center">
                                 <input
                                     type="checkbox"
                                     id="reserveLater"
                                     checked={reserveLater}
                                     onChange={(e) => setReserveLater(e.target.checked)}
-                                    className="mr-2"
+                                    className="mr-2 w-5 h-5"
                                 />
-                                <label htmlFor="reserveLater">Reservaré más adelante</label>
-                            </div>
+                                <label htmlFor="reserveLater" className="text-[#EE64C5]">Reservaré más adelante</label>
+                            </div>}
                         </div>
                     )}
                     
@@ -469,7 +474,9 @@ export const CheckOut = ({ session, catalogId }) => {
                                 e.preventDefault();
                                 setCheckOut({
                                     ...checkOut,
-                                    sesionesConfirmadas: false,                                    
+                                    sesiones: checkOut.sesiones.map(s => null),
+                                    sesionesOk: false,
+                                    sesionesConfirmadas: false,
                                 });
                             }}
                                 className="w-[260px] btn flex border-solid border-2 border-pink-300 rounded-lg relative overflow-hidden bg-[#EE64C5] text-2xl py-1 px-9">
@@ -498,16 +505,17 @@ export const CheckOut = ({ session, catalogId }) => {
                                     <p className="text-left text-xl uppercase tracking-widest text-[#EE64C5]">{catalog.specialtyName}</p>
                                     <p className="text-xs">{catalog.name}</p>
                                 </div>
-                                <div className="w-full flex flex-wrap px-4">
+                                <div className="w-full flex flex-wrap px-4 uppercase tracking-widest">
                                     {!giftCard && !reserveLater && checkOut?.sesiones?.map((s, index) =>
-                                        <div key={`sesion_${index}`} className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2 w-1/3">
-                                            <p className="font-bold uppercase tracking-widest">Sesión {index + 1}</p>
-                                            <p className="text-xs">{s != null ? dayjs(s).format("DD/MMM/YYYY HH:mm") : '--/--/-- --:--'}</p>
+                                        <div key={`sesion_${index}`} className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2 w-1/5">
+                                            <p className="text-sm font-bold uppercase tracking-widest">Sesión {index + 1}</p>
+                                            <p className="text-2xl font-bold">{s != null ? dayjs(s).format("HH:mm") : '--:--'}</p>
+                                            <p className="text-xs">{s != null ? dayjs(s).format("DD/MMM/YYYY") : '--/-_-/--'}</p>
                                         </div>
                                     )}
-                                    {giftCard && <div className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2 w-1/3">
+                                    {giftCard && <div className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2">
                                         <p className="font-bold uppercase tracking-widest text-center">GIFTCARD</p>                                        
-                                        </div>}
+                                    </div>}
                                 </div>
                                 <div className="ml-6">
                                     <div>
@@ -519,7 +527,7 @@ export const CheckOut = ({ session, catalogId }) => {
                                     <p className="text-4xl font-bold">
                                         {esAbonado ? <>
                                             <span className="text-sm">TOTAL</span> $ {numberFormat(Math.round(catalog.price * 0.25))}
-                                            <br /><span className="text-sm">SALDO</span> <span className="text-xl">$ {numberFormat(catalog.price - Math.round(catalog.price * 0.25))}</span>
+                                            <br /><span className="text-sm">SALDO</span> <span className="text-2xl">$ {numberFormat(catalog.price - Math.round(catalog.price * 0.25))}</span>&nbsp;<span className="text-xs"> *pagas tu saldo con nosotras</span>
                                         </> : <><span className="text-sm">TOTAL</span> $ {numberFormat(catalog.price)}</>}
                                     </p>
                                 </div>
@@ -554,10 +562,11 @@ export const CheckOut = ({ session, catalogId }) => {
                                 <p>{`Fecha    : ${dayjs(checkOut.payment.transactionDate).format('DD/MMM/YYYY HH:mm')}`}</p>
                                 <p>{`Monto    : $ ${numberFormat(checkOut.payment.amount)}`}</p>
                                 <p>{`N° orden : ${checkOut.payment.orderNumber}`}</p>
-                                <button
-                                    className="w-[260px] btn border-solid border-2 border-[#EE64C5] rounded-lg relative overflow-hidden bg-[#EE64C5] text-2xl py-1 px-12 text-center text-white mt-6">
-                                    HOME
+                                <Link href="/agenda">
+                                <button className="w-[260px] btn border-solid border-2 border-[#EE64C5] rounded-lg relative overflow-hidden bg-[#EE64C5] text-2xl py-1 px-12 text-center text-white mt-6">
+                                    TU AGENDA
                                 </button>
+                                </Link>
                             </div>
                             <div className="m-auto">
                                 <MdOutlinePriceCheck className="border-8 border-lime-400 rounded-full bg-white text-lime-400 p-4" size="10rem" />

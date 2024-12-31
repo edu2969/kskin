@@ -13,6 +13,7 @@ const config: Config = {
     'border-t-blue-500',
     'border-t-purple-500',
     'border-t-green-500',
+    'border-t-gray-500',
     'bg-red-200', 'bg-purple-200', 
     'text-green-500', 'text-red-500', 'text-purple-500',
   ], 

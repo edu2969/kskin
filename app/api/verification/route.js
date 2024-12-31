@@ -7,6 +7,7 @@ import Specialist from "@/models/Specialist";
 import Order from "@/models/Order";
 import Payment from "@/models/Payment";
 import { ORDER_STATUS } from "@/lib/constants";
+import dayjs from 'dayjs';
 
 export async function POST(req) {
     try {
@@ -25,10 +26,10 @@ export async function POST(req) {
         const resp = await tbkCall.json();        
         console.log("RESPUESTA TBK-transactions 2.1 ----->", resp);
         if(resp.vci == "TSY") {
-          console.log("Al menos entra por acá");
-
-          const catalog = await Catalog.findOne({ id: body.catalogId });
-
+          var order = await Order.findOne({ orderIdentification: resp.buy_order });
+          console.log("ORDER", order);
+          
+          const catalog = await Catalog.findOne({ _id: body.catalogId });
           const specialists = await Specialist.find({ active: true }).lean();
           const specialistSchedules = await Schedule.find({
             specialistId: { $in: specialists.map(s => s._id) },
@@ -36,98 +37,44 @@ export async function POST(req) {
           }).lean();
 
           const specialistLoad = specialists.map(specialist => {
-            const schedules = specialistSchedules.filter(schedule => schedule.specialistId.toString() === specialist._id.toString());
+            const schedules = specialistSchedules.filter(schedule => schedule.specialistId === specialist._id);
             const totalMinutes = schedules.reduce((acc, schedule) => acc + schedule.duration, 0);
             return { specialistId: specialist._id, totalMinutes };
           });
 
+          console.log("SPECIALISTS LOADED ---->", specialistLoad);
           specialistLoad.sort((a, b) => a.totalMinutes - b.totalMinutes);
 
-          const selectedSpecialists = specialistLoad.slice(0, catalog.specialistQty).map(s => s.specialistId);
+          const selectedSpecialists = specialistLoad.slice(0, catalog.specialistQty ?? 1).map(s => s.specialistId);
+          console.log("SELECTED SPECIALISTS ---->", selectedSpecialists);
 
-          console.log("RESP TSY");
-          for (let i = 0; i < body.sessions.length; i++) {
-            const sesion = body.sesiones[i];
-            const reserva = {
-              specialistsId: selectedSpecialists,
-              clientId: body.clientId,
-              catalogId: catalog._id,
-              startDate: sesion.startDate,
-              duration: catalog.durationMins + (catalog.cleanUpMins ?? 0)          
-            };
-            console.log("CREANDO RESERVA", reserva);
-            await Schedule.create(reserva);
+          for (let i = 0; i < order.sessions.length; i++) {
+            const sesion = order.sessions[i];
+            if(sesion.from != null) {
+              const reserva = {
+                specialistIds: selectedSpecialists,
+                orderId: order._id,
+                clientId: order.clientId,
+                catalogId: order.catalogId,
+                startDate: dayjs(sesion.from).toDate(),
+                duration: catalog.durationMins + (catalog.cleanUpMins ?? 0)
+              };
+              await Schedule.create(reserva);
+            }            
           }
-
-          const order = {
-            catalogId: catalog._id,
-            amount: amount,
-            remainingBalance: catalog.price - amount,
-            date: new Date(),
-            userId: body.clientId,
-            status: ORDER_STATUS.created,
-            sessions: body.sessions.map(s => ({ 
-              from: s.startDate, 
-              to: new Date(s.startDate.getTime() + catalog.durationMins * 60 * 1000), 
-              assist: false }))
-          };
-          console.log("CREANDO ORDERN", order);
-          await Order.create(order);
+          order.status = ORDER_STATUS.confirmed;
+          await order.save();
 
           const payment = {
+            gateway: "Transbank",
             orderId: order._id,
-            buyOrder: resp.buy_order,
-            sessionId: resp.session_id,
-            amount: resp.amount,
-            status: resp.status,
-            authorizationCode: resp.authorization_code,
-            paymentTypeCode: resp.payment_type_code,
-            responseCode: resp.response_code,
-            installmentsNumber: resp.installments_number,
-            installmentsAmount: resp.installments_amount,
-            accountingDate: resp.accounting_date,
+            cardNumber: resp.card_detail.card_number,
+            methodType: resp.payment_type_code,
             transactionDate: resp.transaction_date,
-            vci: resp.vci,
-            urlRedirection: resp.url
+            orderNumber: resp.buy_order,
+            amount: resp.amount,
           };
-          console.log("CREANDO PAYMENT", payment);
           await Payment.create(payment);
-
-
-          const oAuth2Client = new google.auth.OAuth2(
-            process.env.GOOGLE_CALENDAR_API_CLIENTID,
-            process.env.GOOGLE_CALENDAR_API_KEY
-          );
-          oAuth2Client.setCredentials({ refresh_token: process.env.GOOGLE_CALENDAR_API_REFRESH_TOKEN });
-
-          const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
-
-          const event = {
-            summary: 'Reserva de Hora',
-            description: 'Reserva de hora confirmada.',
-            start: {
-              dateTime: new Date("06-06-2024 10:30").toISOString(), // Reemplaza con la fecha y hora real del evento
-              timeZone: 'America/Santiago',
-            },
-            end: {
-              dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString(), // Duración de 1 hora
-              timeZone: 'America/Santiago',
-            },
-            attendees: [{ email: process.env.USER_EMAIL }],
-            reminders: {
-              useDefault: false,
-              overrides: [
-                { method: 'email', minutes: 24 * 60 },
-                { method: 'popup', minutes: 10 },
-              ],
-            },
-          };
-
-          // Crear evento en el calendario
-          await calendar.events.insert({
-            calendarId: 'primary',
-            resource: event,
-          });
 
           // Configurar nodemailer
           const transporter = nodemailer.createTransport({

@@ -13,8 +13,7 @@ export async function GET(req, { params }) {
     if (!catalogId) {
       return NextResponse.json({ ok: false, error: "Missing catalogId" }, { status: 400 });
     }
-
-    const catalog = await Catalog.findOne({ id: catalogId }).lean();
+    const catalog = await Catalog.findOne({ _id: catalogId }).lean();
     if (!catalog) {
       return NextResponse.json({ ok: false, error: "Catalog not found" }, { status: 404 });
     }

@@ -28,10 +28,15 @@ export const Navigation = ({ session }) => {
                 </Link>
             </li>
             <li className="rounded-md cursor-pointer hover:bg-[#EE64C5] transition-all rounded-l-none">
-                <Link className="flex text-xl text-[#EE64C5] px-2 m-0 hover:text-white hover:brightness-200" href="/calendar">
+                <Link className="flex text-xl text-[#EE64C5] px-2 m-0 hover:text-white hover:brightness-200" href="/agenda">
                     <GiSelfLove size="1.75rem" className="ml-4 mr-4" /> MI AGENDA                
                 </Link>
             </li>
+            {session?.user && session?.user.role == 1 && <li className="rounded-md cursor-pointer hover:bg-[#EE64C5] transition-all rounded-l-none">
+                <Link className="flex text-xl text-[#EE64C5] px-2 m-0 hover:text-white hover:brightness-200" href="/calendar">
+                    <GiSelfLove size="1.75rem" className="ml-4 mr-4" /> MI AGENDA                
+                </Link>
+            </li>}
             {session?.user && <li className="flex px-2 text-xl rounded-md cursor-pointer hover:bg-[#EE64C5] hover:text-white transition-all rounded-l-none pt-5"
             onClick={() => signOut({ callbackUrl: '/', redirect: true }) }>
                 <RiLogoutCircleLine size="1.75rem" className="ml-4 mr-4" /> CERRAR

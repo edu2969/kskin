@@ -7,18 +7,7 @@ export async function GET(req) {
   try {
     await connectMongoDB();
     const catalogs = await Catalog.find().lean();
-      
-    const catalogsDecorated = await Promise.all(
-      catalogs.map(async (catalog) => {
-        const specialty = await Specialty.findById(catalog.specialtyId).lean();
-        return {
-          ...catalog,
-          specialty,
-        };
-      })
-    );
-
-    return NextResponse.json(catalogsDecorated);
+    return NextResponse.json({ catalogs });
   } catch (error) {
     console.error('Error fetching catalog:', error);
     return NextResponse.status(500).json({ ok: false, error: error.message });

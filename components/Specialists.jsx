@@ -2,22 +2,22 @@
 
 const PROFESIONALES = [{
     id: 1,
-    imagen: 'profesionales/profesional_01.png',
+    imagen: 'profesionales/cata.png',
     nombre: 'Catalina Troncoso',
     titulo: 'Estilista Profesional',
 }, {
     id: 2,
-    imagen: 'profesionales/profesional_02.png',
+    imagen: 'profesionales/alexa.png',
     nombre: 'Alexa Meya',
     titulo: 'Estética facial',
 }, {
     id: 3,
-    imagen: 'profesionales/profesional_03.png',
+    imagen: 'profesionales/karen.png',
     nombre: 'Karen Troncoso',
     titulo: 'Kinesióloga',
 }, {
     id: 4,
-    imagen: 'profesionales/profesional_04.png',
+    imagen: 'profesionales/marcela.png',
     nombre: 'Marcela Guzmán',
     titulo: 'Estética facial',
 }]

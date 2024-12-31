@@ -36,6 +36,7 @@ const getAvailableTimes = (schedules, durationMins, cleanUpMins) => {
   };
   
   export default async function handler(req, res) {
+    console.log("SCHEDULE Handler --->", req.method);
     if (req.method !== 'GET') {
       return res.status(405).json({ message: 'Method Not Allowed' });
     }

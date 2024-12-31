@@ -14,6 +14,10 @@ const paymentSchema = new Schema(
             type: Number,
             required: true,
         },
+        methodType: {
+            type: String,
+            required: true,
+        },
         transactionDate: {
             type: Date,
             required: true,
