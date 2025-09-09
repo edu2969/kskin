@@ -1,10 +1,10 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "@/app/utils/authOptions";
 import { ORDER_STATUS } from "@/lib/constants";
-import Catalog from "@/models/Catalog";
-import Order from "@/models/Order";
+import Catalog from "@/models/catalog";
+import Order from "@/models/order";
 import dayjs from 'dayjs';
 
 export async function POST(req) {
@@ -56,13 +56,20 @@ export async function POST(req) {
       clientId: userId,
       status: ORDER_STATUS.created,
       sessions: body.sessions.map(session => {
-        const from = dayjs(session).toDate();
-        const to = dayjs(from).add(catalog.durationMins + (catalog.cleanUpMins ?? 0), 'minutes').toDate();
+        if(session != null) {
+          const from = dayjs(session).toDate();
+          const to = dayjs(from).add(catalog.durationMins + (catalog.cleanUpMins ?? 0), 'minutes').toDate();
+          return {
+            from,
+            to,
+            assist: false
+          };
+        }
         return {
-          from,
-          to,
+          from: null,
+          to: null,
           assist: false
-        };
+        }        
       })
     });
     await order.save();

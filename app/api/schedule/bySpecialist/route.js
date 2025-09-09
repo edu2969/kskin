@@ -1,8 +1,8 @@
 import { connectMongoDB } from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
-import Schedule from '@/models/Schedule';
+import Schedule from '@/models/schedule';
 import User from '@/models/user';
-import Specialist from '@/models/Specialist';
+import Specialist from '@/models/specialist';
 
 export async function POST(req) {
     try {

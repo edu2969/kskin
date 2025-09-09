@@ -1,6 +1,6 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, models } from "mongoose";
 
-const catalogSchema = new mongoose.Schema({
+const catalogSchema = new Schema({
   id: { type: String, required: true },
   name: { type: String, required: true },
   description: { type: String },
@@ -20,6 +20,5 @@ const catalogSchema = new mongoose.Schema({
   specialistQty: { type: Number },
 });
 
-const Catalog = mongoose.models.Catalog || mongoose.model('Catalog', catalogSchema);
-
+const Catalog = models.Catalog || mongoose.model("Catalog", catalogSchema);
 export default Catalog;

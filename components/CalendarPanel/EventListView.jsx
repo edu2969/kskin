@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, use } from "react"
 import { FaUserCircle, FaEdit } from 'react-icons/fa';
 import { Navigation } from '../Navigation';
 import { SPECIALTY_PALETTE, SPECIALTY_NAMES } from '@/app/utils/colorsPalette';
@@ -9,16 +9,27 @@ import "dayjs/locale/es";
 import axios from "axios";
 import { Loader } from "../Loader";
 dayjs.locale("es");
+import { toast, ToastContainer } from 'react-toastify';
+import { useSession } from "next-auth/react";
 
-export const EventListView = ({ session, height }) => {
+export const EventListView = ({ height }) => {
   const [events, setEvents] = useState(null);
   const [editing, setEditing] = useState(false);
   const [horarios, setHorarios] = useState([]);
   const [fecha, setFecha] = useState(null);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
-  const [catalogId, setCatalogId] = useState(null);
+  const [scheduleSelected, setScheduleSelected] = useState(null);
   const [catalog, setCatalog] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const { data: session } = useSession();
+
+  useEffect(() => {
+      if(status === 'loading') return;
+      if(session && session.user && session.user?.role) {
+          setRole(session.user.role);
+      }
+  }, [session, setRole, status]);
 
   const color = (name) => {
     const index = SPECIALTY_NAMES.indexOf(name);
@@ -37,9 +48,11 @@ export const EventListView = ({ session, height }) => {
     setEvents(result);
   }
 
-  const editar = (id) => {
-    setCatalogId(id);
-    getCatalogSelected(id);
+  const editar = (id, fecha) => {
+    const schedule = events.find(e => e.id === id);
+    console.log("EDITANDO SCHEDULE", schedule);
+    setScheduleSelected(schedule);    
+    cargarHorarios(schedule.catalogId, fecha, schedule);
     setEditing(true);
   }
 
@@ -48,58 +61,50 @@ export const EventListView = ({ session, height }) => {
   const handleDateChange = async (event) => {
     const selectedDate = event.target.value + "T12:00:00";
     console.log("SELECTED DATE", selectedDate);
+    setSelectedDate(selectedDate);
     setFecha(dayjs(selectedDate).toDate());
-    cargarHorarios(selectedDate);
-  };
-
-  const handleUpdateEvent = async () => {
-    try {
-      const response = await axios.put(`/api/schedule/${event.id}`, {
-        date: fecha,
-        time: selectedTime,
-      });
-      if (response.status === 200) {
-        console.log('Evento actualizado correctamente');
-      } else {
-        console.error('Error al actualizar el evento');
-      }
-    } catch (error) {
-      console.error('Error al actualizar el evento:', error);
-    }
+    cargarHorarios(scheduleSelected.catalogId, selectedDate, scheduleSelected);
   };
 
   const handleSelectPlace = (indice) => {
     const selectedTime = dayjs(horarios[indice].fecha).format('HH:mm');
     setSelectedTime(selectedTime);
     setFecha(dayjs(fecha).hour(selectedTime.split(":")[0]).minute(selectedTime.split(":")[1]).toDate());
+    axios.post(`/api/schedule/reschedule/${scheduleSelected.id}`, JSON.stringify({ date: dayjs(fecha).hour(selectedTime.split(":")[0]).minute(selectedTime.split(":")[1]).toDate() }))
+      .then((response) => {
+        console.log("RESPONSE", response.data);
+        const resp = response.data;
+        if(resp !== null) {
+          setEvents(events.map(e => {
+            if(e.id === scheduleSelected.id) {
+              console.log(">>", e);
+              return {
+                ...e,
+                date: dayjs(fecha).hour(selectedTime.split(":")[0]).minute(selectedTime.split(":")[1]).toDate(),
+                startTime: selectedTime,
+                endTime: dayjs(fecha).hour(selectedTime.split(":")[0]).minute(selectedTime.split(":")[1]).add(e.durationMins, 'minute').format('HH:mm'),
+              }
+            }
+            return e;
+          }));
+          toast.success("Horario actualizado exitosamente", {
+            autoClose: 5000,
+          });
+        }
+      });
     setEditing(false);
   }
 
-  const getCatalogSelected = async (id) => {
-    try {
-        const response = await fetch(`/api/catalog/${id}`);
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        var catalogo = await response.json();
-        setCatalog(catalogo.catalog);
-    } catch (error) {
-        console.error('Error fetching catalog:', error);
-    }
-}
-
-  const cargarHorarios = (selectedDate) => {
-    console.log("CARGAR HORARIOS", selectedDate);
+  const cargarHorarios = (id, selectedDate, schedule) => {
     setLoadingCalendar(true);
-    console.log(">>>", `/api/schedule?date=${dayjs(selectedDate).format('YYYY-MM-DD')}&catalogId=${catalogId}`);
-    axios.get(`/api/schedule?date=${dayjs(selectedDate).format('YYYY-MM-DD')}&catalogId=${catalogId}`)
+    axios.get(`/api/schedule?date=${dayjs(selectedDate).format('YYYY-MM-DD')}&catalogId=${id}`)
       .then((response) => {
         console.log("RESPONSE", response.data);
         setHorarios(response.data.map(slot => {
           return {
             ocupado: false,
             desde: { hrs: dayjs(slot).hour(), min: dayjs(slot).minute() },
-            hasta: { hrs: dayjs(slot).add(catalog.durationMins, 'minute').hour(), min: dayjs(slot).add(catalog.durationMins, 'minute').minute() },
+            hasta: { hrs: dayjs(slot).add(schedule.durationMins, 'minute').hour(), min: dayjs(slot).add(schedule.durationMins, 'minute').minute() },
             fecha: dayjs(slot).toDate(),
             pasado: dayjs(slot).isBefore(new Date()),
           }
@@ -137,12 +142,15 @@ export const EventListView = ({ session, height }) => {
                 <div className="absolute right-0 top-0">
                   <p className="text-xs text-gray-600 mr-2 mt-1">{event.startTime} a {event.endTime}</p>
                 </div>
-                <div className="absolute right-0 top-10">
-                  <div className="flex items-center cursor-pointer text-gray-600  hover:text-white" onClick={() => editar(event.catalogId)}>
+                {!dayjs(event.date).add(24, "hour").isBefore(new Date()) && <div className="absolute right-0 top-10">
+                  <div className="flex items-center cursor-pointer text-gray-600  hover:text-sky-600 hover:scale-105" onClick={() => {
+                    setFecha(dayjs(event.date).toDate());
+                    editar(event.id, event.date);
+                  }}>
                     <span className="text-xs mr-4 mt-2">CAMBIAR FECHA</span>
-                    <FaEdit className="w-8 h-8 mr-1" />
+                    <FaEdit className="w-8 h-8 mr-3" />
                   </div>
-                </div>
+                </div>}
                 <div className="flex items-center">
                   {event.specialistNames.map((name, index) => (
                     <div key={index} className="relative">
@@ -165,7 +173,7 @@ export const EventListView = ({ session, height }) => {
                 </div>
                 <div className="mt-2 uppercase">
                   <div className={`text-sm ${'text-' + color(event.specialtyName) + '-800'}`}>{event.specialtyName}</div>
-                  <div className="text-md font-bold text-gray-800">{event.serviceName}</div>                  
+                  <div className="text-md font-bold text-gray-800">{event.serviceName}</div>
                 </div>
                 <div className="mt-2 flex justify-between items-center">
                   <div className="flex">
@@ -183,15 +191,17 @@ export const EventListView = ({ session, height }) => {
       </div>
       <div className={`h-full ${editing ? 'w-1/2 float-left opacity-100' : 'opacity-0'} p-4 max-w-4xl mb-40 transition-all`} style={{ height: height + "px" }}>
         <div className="h-screen flex items-center justify-center">
-          <form className="w-[480px]">
+          <div className="w-[480px]">
             <div className="mb-4">
               <label htmlFor="fecha" className="block text-gray-700 text-sm font-bold mb-2">Selecciona una fecha:</label>
               <input
                 type="date"
                 id="fecha"
                 name="fecha"
+                min={dayjs().format('YYYY-MM-DD')} 
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 onChange={handleDateChange}
+                value={fecha ? dayjs(fecha).format('YYYY-MM-DD') : ''}
               />
             </div>
             {loadingCalendar ? <div className="w-full flex justify-center">
@@ -204,8 +214,11 @@ export const EventListView = ({ session, height }) => {
                   <span>{h.desde.hrs < 10 && '0'}{h.desde.hrs}</span> : <span>{h.desde.min == 0 && '0'}{h.desde.min}</span>
                 </div>)}
               </div>}
-          </form>
+            <button className="btn border-solid border-2 border-[#ea86cc] rounded-full overflow-hidden bg-[#EE64C5] font-extrabold text-xl py-1 px-9 mt-4 float-right"
+              onClick={() => setEditing(false)}>CANCELAR</button>
+          </div>
         </div>
       </div>
+      <ToastContainer position="bottom-right"/>
     </>);
 };

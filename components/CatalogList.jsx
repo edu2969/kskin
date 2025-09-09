@@ -3,17 +3,13 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import numberFormat from '@/app/utils/currency';
 import { Loader } from "@/components/Loader"
 import { BsChevronLeft } from 'react-icons/bs';
 
-export const CatalogList = ({ session }) => {
+export const CatalogList = () => {
     const [catalogs, setCatalogs] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
-    const [selectedService, setSelectedService] = useState(null);
     const [specialties, setSpecialties] = useState([]);
-    const [selectedCatalog, setSelectedCatalog] = useState(null);
-    const [loadingSpcialties, setLoadingSpecialties] = useState(true);
     const [selectedSpecialty, setSelectedSpecialty] = useState(null);
     const [services, setServices] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -29,8 +25,7 @@ export const CatalogList = ({ session }) => {
                 setSpecialties(specialtiesResponse.data);
                 setCatalogs(catalogsResponse.data.catalogs);
                 console.log("catalogs", catalogsResponse.data.catalogs);
-                console.log("specialties", specialtiesResponse.data);
-                setLoadingSpecialties(false);
+                console.log("specialties", specialtiesResponse.data);                
             } catch (error) {
                 console.error('Error fetching data:', error);
             }

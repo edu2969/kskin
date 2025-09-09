@@ -17,10 +17,11 @@ import dayjs from "dayjs";
 import axios from 'axios';
 import 'dayjs/locale/es';
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 dayjs.locale("es");
 
-export const CheckOut = ({ session, catalogId }) => {
+export const CheckOut = ({ catalogId }) => {
     const getPrimerDia = () => {
         var hoy = dayjs();
         if (hoy.day() == 6) {
@@ -49,15 +50,23 @@ export const CheckOut = ({ session, catalogId }) => {
     } = useForm();
     const [login, setLogin] = useState(false);
     const [confirmando, setConfirmando] = useState(false);
-    const [catalog, setCatalog] = useState({});
+    const [catalog, setCatalog] = useState(null);
     const [giftCard, setGiftCard] = useState(false);
     const [reserveLater, setReserveLater] = useState(false);
     const [esAbonado, setEsAbonado] = useState(false);
-
     const [checkOut, setCheckOut] = useState({
         mes: '',
-        dias: []
+        dias: [],
+        verificatingPayment: params.get('token_ws') != null,
     });
+    const { data: sessionData } = useSession();
+
+    useEffect(() => {
+        if(status === 'loading') return;
+        if(session && session.user && session.user?.role) {
+            setRole(session.user.role);
+        }
+    }, [session, setRole, status]);
 
     const identificationHandler = async (data) => {
         if (registrationMode) {
@@ -114,7 +123,7 @@ export const CheckOut = ({ session, catalogId }) => {
             });
             setLogin(false);
             if (signInRes?.error) {
-                setError("Invalid Credentials");
+                setError("Invalid Credentials");                
                 return;
             }
         }
@@ -129,15 +138,10 @@ export const CheckOut = ({ session, catalogId }) => {
         var sesiones = checkOut.sesiones;
         const horario = dayjs(horarios[indiceHorario].fecha);
         sesiones[indice] = dayjs(fecha).hour(horario.hour()).minute(horario.minute()).startOf("minute").toDate();
-        console.log("CHECKOUY", {
-            ...checkOut,
-            sesiones,
-            sesionesOk: indice == checkOut.sesiones.length - 1,
-        });
         setCheckOut({
             ...checkOut,
             sesiones,
-            sesionesOk: indice == checkOut.sesiones.length - 1,
+            sesionesOk: true,
         });
     }
 
@@ -171,6 +175,7 @@ export const CheckOut = ({ session, catalogId }) => {
             nc.sesionesOk = true;
             nc.sesionesConfirmadas = true;
             nc.productoConfirmado = true;
+            nc.verificatingPayment = true;
             const verification = await fetch(`/api/verification`, {
                 method: "POST",
                 headers: {
@@ -185,10 +190,11 @@ export const CheckOut = ({ session, catalogId }) => {
             const respVerify = await verification.json();
             console.log("RESP-Verification", respVerify)
             if (respVerify.vci == "TSY") {
-                nc.payment = respVerify;
+                nc.payment = respVerify;                
             } else {
                 nc.paymentError = true;
             }
+            nc.verificatingPayment = false;
             setCheckOut(nc);
         } else getCatalogSelected();
     }
@@ -203,7 +209,7 @@ export const CheckOut = ({ session, catalogId }) => {
             setCatalog(catalogo.catalog);
             initCalendario(Array.from(Array(catalogo.catalog.sessionCount == 0 ? 1 : catalogo.catalog.sessionCount).keys()).map(i => {
                 return null
-            }));
+            }), catalogo.catalog);
         } catch (error) {
             console.error('Error fetching catalog:', error);
         }
@@ -222,8 +228,8 @@ export const CheckOut = ({ session, catalogId }) => {
         setEsAbonado(event.target.checked);
     };   
 
-    const initCalendario = async (sesiones) => {
-        console.log("INIT CALENDARIO");
+    const initCalendario = async (sesiones, catalogo) => {
+        console.log("INIT CALENDARIO", catalogo);
         const mes = dayjs().format('MMMM');
         const numeroMes = dayjs().get("month");
         var diaSemana = dayjs().endOf("week").add(1, "day").startOf("date");
@@ -234,6 +240,7 @@ export const CheckOut = ({ session, catalogId }) => {
                 throw new Error('Network response was not ok');
             }
             const availableSlots = await response.json();
+            console.log("AVAIBLE", catalogo);
 
             var dias = [];
             for (var i = 0; i < 5; i++) {
@@ -243,7 +250,7 @@ export const CheckOut = ({ session, catalogId }) => {
                         return {
                             ocupado: false,
                             desde: { hrs: dayjs(slot).hour(), min: dayjs(slot).minute() },
-                            hasta: { hrs: dayjs(slot).add(catalog.durationMins, 'minute').hour(), min: dayjs(slot).add(catalog.durationMins, 'minute').minute() },
+                            hasta: { hrs: dayjs(slot).add(catalogo.durationMins, 'minute').hour(), min: dayjs(slot).add(catalogo.durationMins, 'minute').minute() },
                             fecha: dayjs(slot).toDate(),
                             pasado: dayjs(slot).isBefore(new Date()),
                         }
@@ -263,7 +270,7 @@ export const CheckOut = ({ session, catalogId }) => {
                 dias,
                 sesiones
             });
-            cargarHorarios();
+            cargarHorarios(catalogo);
             setLoadingCalendar(false);
             console.log("CHECKOUT", checkOut);
         } catch (error) {
@@ -302,7 +309,7 @@ export const CheckOut = ({ session, catalogId }) => {
                         {session?.user ? <FaCheckCircle className="mt-0.5" size="2rem" /> : <p className="rounded-full bg-pink-700 text-pink-300 h-8 w-8 pl-2.5 pt-1 mt-1 ml-10 font-extrabold">1</p>}
                     </div>
                     <p className={`font text-xl ml-4 mt-1 ${session?.user ? 'text-green-500' : 'text-[#EE64C5]'}`}>
-                        {session?.user ? ('HOLA ' + session?.user.name.split(" ")[0].toUpperCase()) : 'QUIÉN ERES'}
+                        {session?.user ? ('HOLA ' + session?.user.name?.split(" ")[0].toUpperCase() || "Desconocid@") : 'QUIÉN ERES'}
                     </p>
                 </div>
                 <div className={`flex w-1/4 justify-center h-10 ${checkOut?.sesionesOk ? 'text-green-500' : session?.user ? 'text-[#EE64C5]' : 'text-[#b0a3ac]'}`}>
@@ -389,7 +396,7 @@ export const CheckOut = ({ session, catalogId }) => {
                             <Loader />}                        
                     </>}
 
-                    {(!reserveLater && !giftCard && session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
+                    {(!checkOut.verificatingPayment && !reserveLater && !giftCard && session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
                         <h1 className="text-xl text-center mb-4 text-slate-700">
                             <span>{dayjs(fecha).format("MMMM, YYYY").toUpperCase()}</span>
                         </h1>
@@ -408,22 +415,19 @@ export const CheckOut = ({ session, catalogId }) => {
                         </div>}
 
                         <p className={`text-xl mt-4 uppercase tracking-widest text-center ${checkOut.sesionesOk ? 'text-black' : ''}`}>
-                            {checkOut.sesionesOk ? `Sesiones listas. Presiona continuar` : `Seleccione sus ${checkOut?.sesiones?.length || ''} sesiones`}
+                            {checkOut.sesionesOk ? `Sesiones listas. Presiona continuar` : `Seleccione su primera sesión`}
                         </p>
                         <div className="flex flex-wrap justify-center">
-                            {checkOut?.sesiones && checkOut?.sesiones.map((s, index) =>
-                                <div key={`zeylada ${s}_${index}`}
-                                    className={`${s != null ? 'bg-white' : ''} border-2 border-slate-400 rounded-md py-1 px-4 m-2`}>
-                                    <p className={`uppercase tracking-widest font-bold ${s != null ? 'text-[#EE64C5]' : ''} `}>Sesión {index + 1}</p>
-                                    <p className="uppercase text-bold">{s != null ? dayjs(s).format("DD/MMM/YY HH:mm") : '--/--/-- --:--'}</p>
+                            {checkOut?.sesiones && (
+                                <div className={`bg-white border-2 border-slate-400 rounded-md py-1 px-4 m-2`}>
+                                    <p className={`uppercase tracking-widest font-bold text-[#EE64C5]`}>1era Sesión</p>
+                                    <p className="uppercase text-bold">{checkOut.sesiones[0] != null ? dayjs(checkOut.sesiones[0]).format("DD/MMM/YY HH:mm") : '--/--/-- --:--'}</p>
                                 </div>
                             )}
                         </div>
-                        
-                        
                     </>}
 
-                    {(checkOut.sesiones?.length > 0 && session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && (
+                    {(!checkOut.verificatingPayment && checkOut.sesiones?.length > 0 && session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && (
                         <div className="flex justify-center">
                             <div className="flex items-center mr-8">
                                 <input
@@ -448,7 +452,7 @@ export const CheckOut = ({ session, catalogId }) => {
                         </div>
                     )}
                     
-                    {((giftCard || reserveLater) && session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
+                    {(!checkOut.verificatingPayment && (giftCard || reserveLater) && session?.user && !checkOut.sesionesConfirmadas && !checkOut.productoConfirmado) && <>
                     <div className="flex justify-center py-8 text-[#EE64C5]">
                         {giftCard && <>
                             <BsBalloonHeartFill size="6rem"/>
@@ -468,7 +472,7 @@ export const CheckOut = ({ session, catalogId }) => {
                     </div>
                     </>}
 
-                    {!checkOut.sesionesConfirmadas && (checkOut.sesionesOk || giftCard || reserveLater) ? <div className="flex space-x-2 justify-center">
+                    {!checkOut.verificatingPayment && !checkOut.sesionesConfirmadas && (checkOut.sesionesOk || giftCard || reserveLater) ? <div className="flex space-x-2 justify-center">
                         <div className="button-container">
                             <button onClick={(e) => {
                                 e.preventDefault();
@@ -502,15 +506,14 @@ export const CheckOut = ({ session, catalogId }) => {
                         <div className="w-full flex">
                             <div className="w-full ml-4">
                                 <div className="w-full ml-6">
-                                    <p className="text-left text-xl uppercase tracking-widest text-[#EE64C5]">{catalog.specialtyName}</p>
-                                    <p className="text-xs">{catalog.name}</p>
+                                    <p className="text-left text-xl uppercase text-[#EE64C5]">PAGA TU RESERVA</p>
                                 </div>
-                                <div className="w-full flex flex-wrap px-4 uppercase tracking-widest">
-                                    {!giftCard && !reserveLater && checkOut?.sesiones?.map((s, index) =>
-                                        <div key={`sesion_${index}`} className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2 w-1/5">
-                                            <p className="text-sm font-bold uppercase tracking-widest">Sesión {index + 1}</p>
-                                            <p className="text-2xl font-bold">{s != null ? dayjs(s).format("HH:mm") : '--:--'}</p>
-                                            <p className="text-xs">{s != null ? dayjs(s).format("DD/MMM/YYYY") : '--/-_-/--'}</p>
+                                <div className="w-full flex flex-wrap px-4">
+                                    {!giftCard && !reserveLater && (
+                                        <div className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2 w-1/5">
+                                            <p className="text-sm font-bold">1era SESIÓN</p>
+                                            <p className="text-2xl font-bold">{checkOut.sesiones[0] != null ? dayjs(checkOut.sesiones[0]).format("HH:mm") : '--:--'}</p>
+                                            <p className="text-xs uppercase tracking-widest">{checkOut.sesiones[0] != null ? dayjs(checkOut.sesiones[0]).format("DD/MMM/YYYY") : '--/-_-/--'}</p>
                                         </div>
                                     )}
                                     {giftCard && <div className="border-2 border-pink-300 bg-[#EE64C5] text-white rounded-md py-1 px-2 m-2">
@@ -554,7 +557,7 @@ export const CheckOut = ({ session, catalogId }) => {
                             <Loader />}
                     </>}
 
-                    {checkOut.productoConfirmado && <div className="text-left">
+                    {(checkOut.productoConfirmado && !checkOut.verificatingPayment)  && <div className="text-left">
                         {checkOut.payment && <div className="flex">
                             <div className="justify-start text-left uppercase tracking-widest">
                                 <h1 className="text-3xl mb-4 text-[#EE64C5]">Pago exitoso</h1>
@@ -573,18 +576,18 @@ export const CheckOut = ({ session, catalogId }) => {
                             </div></div>}
                         {checkOut.paymentError && <>
                             <p className="text-[#EE64C5]">`Error!!!`</p>
-                        </>}
-                        {confirmando && <Loader />}
+                        </>}                        
                     </div>}
+                    {checkOut.verificatingPayment && <Loader />}
                 </form>
 
-                <div className="absolute top-0 w-full full-shadow">
+                {catalog != null && <div className="absolute top-0 w-full full-shadow">
                     <div className="w-[920px] m-auto">
                     <div className="absolute flex w-[920px] z-10 text-[#A4A5A1] mt-6 p-0 mx-auto shadow-md rounded-lg bg-white overflow-hidden">
-                        <img className="relative z-20 w-40 rounded-br-full" src="/tratamiento_piel.jpg" />
+                        <img className="relative z-20 w-40 rounded-br-full" src={`/catalogo/${catalog.imgUrl}`} />
                         <div className="w-80 ml-4 mt-2">
-                            <p className="font-bold text-xl">{catalog.specialtyName}</p>
-                            <p className="text-xs">{catalog.name}</p>
+                            <p className="font-bold text-xl uppercase">{catalog.specialtyName}</p>
+                            <p className="text-xs uppercase">{catalog.name}</p>
                         </div>
                         <div className="absolute rounded-bl-lg right-0 w-fit flex h-6 bg-green-200 px-4 border-l-">
                             <div className="flex">
@@ -593,12 +596,12 @@ export const CheckOut = ({ session, catalogId }) => {
                             </div>
                             <div className="flex ml-4">
                                 <GoClockFill size="1rem" className="mt-1" />
-                                <span className="text-sm ml-1 mt-0.5">{ catalog.sessionCount > 0 ? (catalog.sessionCount + ' sesiones x') : ''} <b>{catalog.durationMins} mins</b></span>
+                                <span className="text-sm ml-1 mt-0.5">{ catalog.sessionCount > 0 ? (catalog.sessionCount + ' sesiones x') : ''} <b>{catalog.durationMins} mins</b> x {catalog.sessionCount <= 1 ? 1 : catalog.sessionCount} sesi{catalog.sessionCount > 1 ? 'ones' : 'ón'}</span>
                             </div>
                         </div>
                     </div>
                     </div>                    
-                </div>
+                </div>}
             </div>
         </div>
     </>

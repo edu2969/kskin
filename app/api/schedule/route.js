@@ -1,8 +1,8 @@
 import { connectMongoDB } from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
-import Catalog from '@/models/Catalog';
-import Schedule from '@/models/Schedule';
-import Specialist from '@/models/Specialist';
+import Catalog from '@/models/catalog';
+import Schedule from '@/models/schedule';
+import Specialist from '@/models/specialist';
 
 export async function POST(req) {
   try {
@@ -57,12 +57,16 @@ export async function GET(req) {
     endOfDay.setHours(19, 0, 0, 0);
 
     const specialists = await Specialist.find({
+      specialtyIds: catalog.specialtyId,
       active: true,
     }).lean();
+    console.log("ACTIVOS", specialists);
 
     const schedules = await Schedule.find({
+      specialistIds: { $in: specialists.map(specialist => specialist._id) },
       startDate: { $gte: startOfDay, $lt: endOfDay }
     }).lean();
+    console.log("SCHEDULES", schedules);
 
     const lunchBreakStart = new Date(date);
     lunchBreakStart.setHours(13, 0, 0, 0);
@@ -84,8 +88,7 @@ export async function GET(req) {
       }
 
       const isSlotAvailable = specialists.some(specialist => {
-        const specialistSchedules = schedules.filter(schedule => schedule.specialistId === specialist._id);
-        return !specialistSchedules.some(schedule => {
+        return !schedules.some(schedule => {
           const scheduleStart = new Date(schedule.startDate);
           const scheduleEnd = new Date(scheduleStart);
           scheduleEnd.setMinutes(scheduleEnd.getMinutes() + schedule.duration);

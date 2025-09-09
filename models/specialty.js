@@ -21,7 +21,7 @@ const specialtySchema = new Schema({
         type: Boolean,
         required: true,
     },
-    urlImg: {
+    imgUrl: {
         type: String,
     },
 },

@@ -1,8 +1,8 @@
 import mongoose, { Schema, models } from "mongoose";
 
 const scheduleSchema = new Schema({
-    specialistIds: {
-        type: [mongoose.Types.ObjectId],
+    specialistId: {
+        type: mongoose.Types.ObjectId,
         ref: "Specialist",
     },
     orderId: {

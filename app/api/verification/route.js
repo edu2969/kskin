@@ -1,13 +1,14 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 import nodemailer from 'nodemailer';
-import Catalog from "@/models/Catalog";
-import Schedule from "@/models/Schedule";
-import Specialist from "@/models/Specialist";
-import Order from "@/models/Order";
-import Payment from "@/models/Payment";
+import Schedule from "@/models/schedule";
+import Catalog from "@/models/catalog";
+import Specialist from "@/models/specialist";
+import Order from "@/models/order";
+import Payment from "@/models/payment";
 import { ORDER_STATUS } from "@/lib/constants";
 import dayjs from 'dayjs';
+import User from "@/models/user";
 
 export async function POST(req) {
     try {
@@ -28,23 +29,38 @@ export async function POST(req) {
         if(resp.vci == "TSY") {
           var order = await Order.findOne({ orderIdentification: resp.buy_order });
           console.log("ORDER", order);
+          if(order.status == ORDER_STATUS.confirmed) {
+            return NextResponse.json({ 
+              ok: true,
+              cardNumber: resp.card_detail.card_number,
+              transactionDate: resp.transaction_date,
+              orderNumber: resp.buy_order,
+              vci: resp.vci,
+              amount: resp.amount,
+            });
+          }
           
           const catalog = await Catalog.findOne({ _id: body.catalogId });
-          const specialists = await Specialist.find({ active: true }).lean();
+          const specialists = await Specialist.find({ 
+            specialtyIds: catalog.specialtyId,
+            active: true 
+          }).lean();
+          console.log("ACTIVOS", specialists);
+
           const specialistSchedules = await Schedule.find({
             specialistId: { $in: specialists.map(s => s._id) },
-            startDate: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+            active: true
           }).lean();
+          console.log("SCHEDULES", specialistSchedules);
 
           const specialistLoad = specialists.map(specialist => {
             const schedules = specialistSchedules.filter(schedule => schedule.specialistId === specialist._id);
             const totalMinutes = schedules.reduce((acc, schedule) => acc + schedule.duration, 0);
             return { specialistId: specialist._id, totalMinutes };
           });
-
           console.log("SPECIALISTS LOADED ---->", specialistLoad);
-          specialistLoad.sort((a, b) => a.totalMinutes - b.totalMinutes);
 
+          specialistLoad.sort((a, b) => a.totalMinutes - b.totalMinutes);
           const selectedSpecialists = specialistLoad.slice(0, catalog.specialistQty ?? 1).map(s => s.specialistId);
           console.log("SELECTED SPECIALISTS ---->", selectedSpecialists);
 
@@ -85,10 +101,11 @@ export async function POST(req) {
             },
           });
 
+          const client = await User.findOne({ _id: order.clientId }).lean();
           // Enviar correo al usuario
           await transporter.sendMail({
             from: process.env.EMAIL_USER,
-            to: process.env.EMAIL_USER,
+            to: client.email,
             subject: 'Reserva de Hora Confirmada',
             html: `
               <p>Su reserva de hora ha sido confirmada y agregada a su calendario.</p>

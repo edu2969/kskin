@@ -1,14 +1,14 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import Catalog from "@/models/Catalog";
-import Order from "@/models/Order";
-import Schedule from "@/models/Schedule";
-import Specialist from "@/models/Specialist";
-import Specialty from "@/models/Specialty";
+import Catalog from "@/models/catalog";
+import Order from "@/models/order";
+import Schedule from "@/models/schedule";
+import Specialist from "@/models/specialist";
+import Specialty from "@/models/specialty";
 import User from "@/models/user";
 import dayjs from 'dayjs';
-import { authOptions } from "../auth/[...nextauth]/route";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/utils/authOptions";
 
 export async function GET(req) {
   try {
@@ -33,7 +33,7 @@ export async function GET(req) {
       const order = await Order.findById(item.orderId).lean();
       console.log("---", catalog, specialty, specialists, users, order);
       return {
-        id: order._id,
+        id: item._id,
         catalogId: catalog._id,
         specialtyName: specialty.shortName,
         serviceImage: specialty.urlImg,
@@ -45,13 +45,13 @@ export async function GET(req) {
         specialistAvatars: users.map(s => s.avatarImg),
         price: order.amount,
         paid: order.amount - order.remainingBalance,
-        description: catalog.description,        
+        description: catalog.description,
+        durationMins: catalog.durationMins + (catalog.cleanUpMins ?? 0),
       };
     }));
     console.log("Enriched schedules:", enrichedSchedules);
     return NextResponse.json(enrichedSchedules);
-  } catch (error) {
-    console.error('Error fetching schedules:', error);
+  } catch {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 }

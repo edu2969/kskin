@@ -82,7 +82,7 @@ export const LoginForm = ({ session }) => {
         }
     }
     
-    return <div className="absolute w-full left-0 top-16 h-screen overflow-hidden">
+    return <div className="absolute w-full left-0 top-48 h-screen overflow-hidden">
         <form className="relative z-30 bg-white mt-28 p-6 mx-auto shadow w-[860px] rounded-lg full-shadow">
             {!session?.user && <>
                 {!login ? <div>

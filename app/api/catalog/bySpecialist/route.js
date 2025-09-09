@@ -1,7 +1,7 @@
 import { connectMongoDB } from '@/lib/mongodb';
-import Catalog from '@/models/Catalog';
-import Specialty from '@/models/Specialty';
-import Specialist from '@/models/Specialist';
+import Catalog from '@/models/catalog';
+import Specialty from '@/models/specialty';
+import Specialist from '@/models/specialist';
 import { NextResponse } from 'next/server';
 
 export async function POST(req) {

@@ -1,7 +1,7 @@
 import { connectMongoDB } from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
-import Catalog from '@/models/Catalog';
-import Specialty from '@/models/Specialty';
+import Catalog from '@/models/catalog';
+import Specialty from '@/models/specialty';
 
 export async function GET(req, { params }) {
   try {
@@ -20,6 +20,7 @@ export async function GET(req, { params }) {
 
     const specialty = await Specialty.findOne({ _id: catalog.specialtyId }).lean();
     catalog.specialtyName = specialty.name;
+    catalog.imgUrl = specialty.imgUrl;
 
     return NextResponse.json({ ok: true, catalog });
   } catch (error) {

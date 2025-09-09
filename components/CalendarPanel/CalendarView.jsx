@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import 'dayjs/locale/es'
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { SPECIALTY_NAMES, SPECIALTY_PALETTE } from "@/app/utils/colorsPalette";
+import { useSession } from "next-auth/react";
 
 dayjs.extend(customParseFormat);
 dayjs.locale("es")
@@ -18,7 +19,7 @@ const COLORS = ["green", "blue", "red", "purple", "yellow", "orange", "indigo"]
 const daysOfWeek = Array.from({ length: 7 }, (_, i) => dayjs().day((i + 1) % 7).format("dddd"));
 const hours = Array.from({ length: 6 }, (_, i) => `${i * 2 + 8}:00`);
 
-export const CalendarView = ({ session, height }) => {
+export const CalendarView = ({ height }) => {
   const [currentWeek, setCurrentWeek] = useState(dayjs().startOf("week"));
   const [events, setEvents] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -48,6 +49,15 @@ export const CalendarView = ({ session, height }) => {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+
+  const { data: session } = useSession();
+
+  useEffect(() => {
+      if(status === 'loading') return;
+      if(session && session.user && session.user?.role) {
+          setRole(session.user.role);
+      }
+  }, [session, setRole, status]);
 
   const variants = {
     enter: (direction) => ({ x: direction > 0 ? "100%" : "-100%", opacity: 1 }),
@@ -214,9 +224,9 @@ export const CalendarView = ({ session, height }) => {
     setSelectedEvent(null);
   };
 
-  const ROW_HEIGHT_FACTOR = 1.249;
-  const EVENT_HEIGHT_FACTOR = 38.39;
-  const ROW_OFFSET = 16;
+  const ROW_HEIGHT_FACTOR = 1.4;
+  const EVENT_HEIGHT_FACTOR = 38;
+  const ROW_OFFSET = 0;
 
   const getTimePosition = (startDate) => {
     const [startHour, startMinute] = startDate.split(":").map(Number);
@@ -271,16 +281,13 @@ export const CalendarView = ({ session, height }) => {
       setSpecialties(respSpecialties.data);
 
       const response = await axios.get(`/api/catalog/`);
+      console.log("CATALOGS", response.data);
       setCatalogs(response.data.catalogs);      
 
-      console.log("FULLCATALOG", response.data)
       setSelectedSpecialty(null);
       setSelectedCatalog(null);
 
-      console.log("response1.data", response.data)
-
       const resp2 = await axios.post(`/api/schedule/bySpecialist/`, { id: session?.user?.id });
-      console.log("response2.data", resp2.data);
       const decoratedEvents = resp2?.data.map(s => {
         const catalog = response.data.catalogs.find(c => {
           return c._id == s.catalogId
@@ -332,11 +339,11 @@ export const CalendarView = ({ session, height }) => {
     fetchCatalogs();
   }
 
-  const filteredSuggestions = suggestions.filter(
-    (user) =>
-      user.name?.toLowerCase().includes(query.toLowerCase()) ||
+  const filteredSuggestions = query && suggestions.filter(
+    (user) => {
+      return user.name?.toLowerCase().includes(query.toLowerCase()) ||
       user.email.toLowerCase().includes(query.toLowerCase())
-  );
+    });
 
   return (
     <div className="w-full mx-auto p-2" style={{ height: height + "px" }}>
@@ -360,7 +367,7 @@ export const CalendarView = ({ session, height }) => {
       <div className="flex">
         <div className="w-16 flex-shrink-0 mt-12">
           {hours.map((hour) => (
-            <div key={hour} className="h-24 flex items-center justify-center text-xs text-pink-500">
+            <div key={hour} className="flex items-center justify-center text-xs text-pink-500" style={{"height": "104px"}}>
               {hour}
             </div>
           ))}
@@ -431,11 +438,17 @@ export const CalendarView = ({ session, height }) => {
                                 const user = suggestions.find(u => u._id == event.clientId);
                                 setSelectedEvent({
                                   ...event,
+                                  specialtyId: event.specialtyId,
+                                  catalogId: event.catalogId,
                                   clientName: user.name,
                                   phone: user.phone,
                                   email: user.email,
                                   isValid: true,
                                 });
+                                setSelectedCatalog(catalogs.find(c => c._id == event.catalogId));
+                                if(event.specialtyId != null) {
+                                  setSelectedSpecialty(specialties.find(s => s._id == event.specialtyId));
+                                }
                                 setQuery(user.name);
                                 setIsDialogOpen(true);
                               }}
@@ -606,15 +619,15 @@ export const CalendarView = ({ session, height }) => {
                     <label className="block mb-1 text-sm font-bold text-gray-700">Categoría</label>
                     <div className="mb-2 mr-4">
                       <select
-                        value={selectedEvent.title}
+                        value={selectedEvent.specialtyId}
                         onChange={(e) => {
                           if (e.target.value != "") {
-                            setSelectedSpecialty(catalogs[e.target.value]);
+                            setSelectedSpecialty(specialties.find(s => s.specialtyId == e.target.value));
                             setSelectedEvent({
                               ...selectedEvent,
                               title: e.target.value,
                               catalogId: "",
-                              specialtyId: "",
+                              specialtyId: e.target.value,
                               serviceName: "",
                               color: COLORS[Object.keys(catalogs).indexOf(e.target.value)],
                               isValid: false,
@@ -635,10 +648,7 @@ export const CalendarView = ({ session, height }) => {
                         className="form-select mt-1 w-full border-2 border-gray-200 rounded-md pl-2 py-2.5 max-w-xs"
                       >
                         <option value="">Seleccione una</option>
-                        {Object.keys(catalogs).length > 0 &&
-                          Object.keys(catalogs)
-                            .map(c => (<option key={c} value={c}>{c}</option>)
-                            )}
+                        {specialties != null && specialties.map(c => (<option key={c._id} value={c._id}>{c.name}</option>))}
                       </select>
                     </div>
                   </div>
@@ -646,7 +656,7 @@ export const CalendarView = ({ session, height }) => {
                     <label className="text-sm font-bold text-gray-700">Tratamiento</label>
                     <div className="mb-2">
                       <select
-                        value={selectedEvent.specialtyId}
+                        value={selectedEvent?.catalogId ?? null}
                         onChange={(e) => {
                           const selectedOption = e.target.options[e.target.selectedIndex];
                           const specialtyId = selectedOption.getAttribute('id');
@@ -680,8 +690,8 @@ export const CalendarView = ({ session, height }) => {
                         className="form-select mt-1 border-2 border-gray-200 rounded-md pl-2 py-2.5 w-full"
                       >
                         <option value="">Seleccione uno</option>
-                        {selectedSpecialty && selectedSpecialty.length > 0 && selectedSpecialty.map(c => (
-                          <option key={c._id} value={c.name} id={c._id}>
+                        {selectedSpecialty && catalogs != null && catalogs.filter(c => c.specialtyId == selectedSpecialty._id).map(c => (
+                          <option key={c._id} value={c._id} id={c._id}>
                             {c.name.substring(0, 35) + (c.name.length > 35 ? '…' : '')}
                           </option>
                         ))}

@@ -1,37 +1,49 @@
 "use client"
+
 import { RiLogoutCircleLine } from "react-icons/ri"
 import { LuUserCircle2 } from "react-icons/lu"
 import { GiSelfLove } from "react-icons/gi"
 import { useState } from "react"
 import Link from "next/link"
 import { signOut } from "next-auth/react"
+import Image from "next/image"
+import { useSession } from 'next-auth/react';
 
-export const Navigation = ({ session }) => {
-    const [menuActive, setMenuActive] = useState(false)
+
+export const Navigation = () => {
+    const [menuActive, setMenuActive] = useState(false);
+    const { data: session } = useSession();
   
     const handleToggleMenu = () => {
         setMenuActive(!menuActive);
-    }    
+    }
+    
+    useEffect(() => {
+        if(status === 'loading') return;
+        if(session && session.user && session.user?.role) {
+            setRole(session.user.role);
+        }
+    }, [session, setRole, status]);
 
     return (<div className="z-30 nav fixed top-0 left-0">
         <label htmlFor="menu" className="icon" onClick={handleToggleMenu}>
             <div className={`menu${menuActive ? ' active' : ''}`}></div>
         </label>
         <ul className={`${menuActive ? 'visible ' : ''}absolute top-0 left-[300px] width-[220px] transition-all pr-8 border-r-8 z-20 space-y-2 pb-2 text-[#EE64C5]`}>
-            {session?.user && <li className="w-full mb-16">
-                <div className="rounded-full py-2 hover:bg-[#EE64C5] hover:text-white rounded-l-none"><LuUserCircle2 className="m-auto" size="6rem"/></div>
-            </li>}
+            <li className="w-full mb-16">
+                {session?.user.avatarImg ? <Image src={session.user.avatarImg} alt="user" width={102} height={102} className="rounded-full m-auto" /> : <div className="rounded-full py-2 hover:bg-[#EE64C5] hover:text-white rounded-l-none"><LuUserCircle2 className="m-auto" size="6rem"/></div>}
+            </li>
             <li className="rounded-md cursor-pointer hover:bg-[#EE64C5] transition-all rounded-l-none">
                 <Link className="flex text-xl text-[#EE64C5] px-2 m-0 hover:text-white hover:brightness-200" href="/">
                     <img width={26} height={26} className="mx-4 mt-2" src="/simple-logo-transparent.png" alt="logo KSkin" />
                     <p className="mt-2"> HOME</p>
                 </Link>
             </li>
-            <li className="rounded-md cursor-pointer hover:bg-[#EE64C5] transition-all rounded-l-none">
+            {session?.user && <li className="rounded-md cursor-pointer hover:bg-[#EE64C5] transition-all rounded-l-none">
                 <Link className="flex text-xl text-[#EE64C5] px-2 m-0 hover:text-white hover:brightness-200" href="/agenda">
                     <GiSelfLove size="1.75rem" className="ml-4 mr-4" /> MI AGENDA                
                 </Link>
-            </li>
+            </li>}
             {session?.user && session?.user.role == 1 && <li className="rounded-md cursor-pointer hover:bg-[#EE64C5] transition-all rounded-l-none">
                 <Link className="flex text-xl text-[#EE64C5] px-2 m-0 hover:text-white hover:brightness-200" href="/calendar">
                     <GiSelfLove size="1.75rem" className="ml-4 mr-4" /> MI AGENDA                

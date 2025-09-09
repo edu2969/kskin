@@ -1,6 +1,6 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, models } from "mongoose";
 
-const biSpecialistSchema = new mongoose.Schema({
+const biSpecialistSchema = new Schema({
   id: { type: String, required: true },
   name: { type: String, required: true },
   price: { type: Number, required: true },
@@ -17,6 +17,5 @@ const biSpecialistSchema = new mongoose.Schema({
   homeService: { type: Boolean, required: true },
 });
 
-const BISpecialist = mongoose.models.BISpecialist || mongoose.model('BISpecialist', biSpecialistSchema);
-
+const BISpecialist = models.BISpecialist || mongoose.model('BISpecialist', biSpecialistSchema);
 export default BISpecialist;
