@@ -6,7 +6,7 @@ import { EventListView } from "./CalendarPanel/EventListView";
 import { Loader } from "./Loader";
 
 export const Agenda = ({ height }) => {
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
 
     useEffect(() => {
         if(status === 'loading') return;

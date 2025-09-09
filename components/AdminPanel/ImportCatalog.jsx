@@ -2,18 +2,9 @@
 import { useState } from "react"
 import axios from 'axios';
 import * as XLSX from 'xlsx';
-import { useSession } from 'next-auth/react';
 
-export const ImportCatalog = () => {
+export const ImportCatalog = ({ session }) => {
     const [file, setFile] = useState(null);
-    const { data: session } = useSession();
-
-    useEffect(() => {
-        if(status === 'loading') return;
-        if(session && session.user && session.user?.role) {
-            setRole(session.user.role);
-        }
-    }, [session, setRole, status]);
 
     const handleFileChange = (e) => {
         setFile(e.target.files[0]);

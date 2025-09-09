@@ -17,11 +17,10 @@ import dayjs from "dayjs";
 import axios from 'axios';
 import 'dayjs/locale/es';
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 
 dayjs.locale("es");
 
-export const CheckOut = ({ catalogId }) => {
+export const CheckOut = ({ session, catalogId }) => {
     const getPrimerDia = () => {
         var hoy = dayjs();
         if (hoy.day() == 6) {
@@ -58,15 +57,7 @@ export const CheckOut = ({ catalogId }) => {
         mes: '',
         dias: [],
         verificatingPayment: params.get('token_ws') != null,
-    });
-    const { data: sessionData } = useSession();
-
-    useEffect(() => {
-        if(status === 'loading') return;
-        if(session && session.user && session.user?.role) {
-            setRole(session.user.role);
-        }
-    }, [session, setRole, status]);
+    });    
 
     const identificationHandler = async (data) => {
         if (registrationMode) {

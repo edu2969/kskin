@@ -1,21 +1,11 @@
 "use client"
 
-import { useSession } from "next-auth/react";
 import Image from "next/image";
-import { LoginForm } from "./LoginForm";
-import { Navigation } from "./Navigation";
-import { SpecialistPanel } from "./SpecialistPanel";
+import { LoginForm } from "./AdminPanel/LoginForm";
+import { SpecialistPanel } from "./AdminPanel/SpecialistPanel";
+import Navigation from "./Navigation";
 
-export const AdminPage = () => {
-    const { data: session } = useSession();
-
-    useEffect(() => {
-        if(status === 'loading') return;
-        if(session && session.user && session.user?.role) {
-            setRole(session.user.role);
-        }
-    }, [session, setRole, status]);
-    
+export const Admin = ({ session }) => {
     return (<main className="bg-[#EDF3FB] min-h-screen">
         <Navigation />
         {!session?.user && <div className="bg-[#EDF3FB] p-4">

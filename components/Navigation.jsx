@@ -1,5 +1,4 @@
 "use client"
-
 import { RiLogoutCircleLine } from "react-icons/ri"
 import { LuUserCircle2 } from "react-icons/lu"
 import { GiSelfLove } from "react-icons/gi"
@@ -7,24 +6,14 @@ import { useState } from "react"
 import Link from "next/link"
 import { signOut } from "next-auth/react"
 import Image from "next/image"
-import { useSession } from 'next-auth/react';
 
-
-export const Navigation = () => {
+export default function Navigation({ session }) {
     const [menuActive, setMenuActive] = useState(false);
-    const { data: session } = useSession();
-  
+    
     const handleToggleMenu = () => {
         setMenuActive(!menuActive);
     }
-    
-    useEffect(() => {
-        if(status === 'loading') return;
-        if(session && session.user && session.user?.role) {
-            setRole(session.user.role);
-        }
-    }, [session, setRole, status]);
-
+ 
     return (<div className="z-30 nav fixed top-0 left-0">
         <label htmlFor="menu" className="icon" onClick={handleToggleMenu}>
             <div className={`menu${menuActive ? ' active' : ''}`}></div>

@@ -1,7 +1,8 @@
 "use client"
-import { useState, useEffect, useRef, use } from "react"
+
+import { useState, useEffect, useRef } from "react"
 import { FaUserCircle, FaEdit } from 'react-icons/fa';
-import { Navigation } from '../Navigation';
+import Navigation from '../Navigation';
 import { SPECIALTY_PALETTE, SPECIALTY_NAMES } from '@/app/utils/colorsPalette';
 import dayjs from 'dayjs';
 import numberFormat from '@/app/utils/currency';
@@ -10,9 +11,8 @@ import axios from "axios";
 import { Loader } from "../Loader";
 dayjs.locale("es");
 import { toast, ToastContainer } from 'react-toastify';
-import { useSession } from "next-auth/react";
 
-export const EventListView = ({ height }) => {
+export const EventListView = ({ session, height }) => {
   const [events, setEvents] = useState(null);
   const [editing, setEditing] = useState(false);
   const [horarios, setHorarios] = useState([]);
@@ -22,16 +22,8 @@ export const EventListView = ({ height }) => {
   const [catalog, setCatalog] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
-  const { data: session } = useSession();
-
-  useEffect(() => {
-      if(status === 'loading') return;
-      if(session && session.user && session.user?.role) {
-          setRole(session.user.role);
-      }
-  }, [session, setRole, status]);
-
-  const color = (name) => {
+  
+    const color = (name) => {
     const index = SPECIALTY_NAMES.indexOf(name);
     return SPECIALTY_PALETTE[index];
   }
