@@ -51,7 +51,7 @@ export async function GET(req) {
     }));
     console.log("Enriched schedules:", enrichedSchedules);
     return NextResponse.json(enrichedSchedules);
-  } catch {
+  } catch(error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 }
