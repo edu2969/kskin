@@ -10,7 +10,6 @@ import dayjs from "dayjs";
 import 'dayjs/locale/es'
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { SPECIALTY_NAMES, SPECIALTY_PALETTE } from "@/app/utils/colorsPalette";
-import { useSession } from "next-auth/react";
 
 dayjs.extend(customParseFormat);
 dayjs.locale("es")
@@ -19,7 +18,7 @@ const COLORS = ["green", "blue", "red", "purple", "yellow", "orange", "indigo"]
 const daysOfWeek = Array.from({ length: 7 }, (_, i) => dayjs().day((i + 1) % 7).format("dddd"));
 const hours = Array.from({ length: 6 }, (_, i) => `${i * 2 + 8}:00`);
 
-export const CalendarView = ({ height }) => {
+export const CalendarView = ({ session, height }) => {
   const [currentWeek, setCurrentWeek] = useState(dayjs().startOf("week"));
   const [events, setEvents] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -49,16 +48,7 @@ export const CalendarView = ({ height }) => {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-
-  const { data: session } = useSession();
-
-  useEffect(() => {
-      if(status === 'loading') return;
-      if(session && session.user && session.user?.role) {
-          setRole(session.user.role);
-      }
-  }, [session, setRole, status]);
-
+  
   const variants = {
     enter: (direction) => ({ x: direction > 0 ? "100%" : "-100%", opacity: 1 }),
     center: { x: 0, opacity: 1 },

@@ -9,7 +9,7 @@ export default async function AgendaPage() {
     return (
         <>
             <Navigation session={session}/>
-            <Agenda height={height}/>
+            <Agenda session={session} height={height}/>
         </>
     );
 }
